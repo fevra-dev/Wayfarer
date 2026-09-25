@@ -3,6 +3,7 @@ package com.wayfarer;
 import static com.wayfarer.CompassMath.bearingDegrees;
 import static com.wayfarer.CompassMath.bearingToTarget;
 import static com.wayfarer.CompassMath.edgeAlpha;
+import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
 import static com.wayfarer.CompassMath.signedDeltaDegrees;
 import static org.junit.Assert.assertEquals;
@@ -79,6 +80,17 @@ public class CompassMathTest
 		assertEquals(0.0, edgeAlpha(1.0, 0.22), EPS);
 		assertEquals(0.0, edgeAlpha(-1.0, 0.22), EPS);
 		assertEquals(0.5, edgeAlpha(0.89, 0.22), 0.001);
+	}
+
+	@Test
+	public void nearFadeQuietsOnlyTheLastFewTiles()
+	{
+		assertEquals(0.2, nearFade(0, 4, 0.2), EPS);
+		assertEquals(0.6, nearFade(2, 4, 0.2), EPS);
+		assertEquals(1.0, nearFade(4, 4, 0.2), EPS);
+		assertEquals(1.0, nearFade(25, 4, 0.2), EPS);
+		// Never brighter than full, never below the floor.
+		assertEquals(0.2, nearFade(-1, 4, 0.2), EPS);
 	}
 
 	@Test

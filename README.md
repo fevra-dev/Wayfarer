@@ -15,9 +15,18 @@ and which way it is.
 | Red | An NPC you can attack |
 | Yellow | Any other NPC |
 
-Closer things draw brighter. Only players and NPCs that already appear on your minimap are marked.
+Closer things draw brighter, except within the last few tiles, where dots fade back down: something
+running right past you swings across the whole strip in a blink, and you can already see it on
+screen. Only players and NPCs that already appear on your minimap are marked.
 
 ## Options
+
+Under **Strip**:
+
+- **Placement**: *Movable* (the default) sits at the top centre and can be dragged anywhere or snapped
+  to any corner with Alt held. *Centred above chat* locks it in the middle, just above the chatbox, and
+  keeps it centred when you resize the window.
+- **Shape**: rounded *Pill* ends or *Square* corners.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
 
@@ -30,7 +39,8 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 Turn all three off for a plain compass. The **Reset** button at the bottom of the settings panel
 puts everything back to the defaults.
 
-The strip starts at the top centre of the game view. Hold Alt and drag it to move it.
+Holding Alt (Option on a Mac) and dragging is how RuneLite moves any overlay; Alt+right-click puts
+one back where it started.
 
 ## What it doesn't do
 

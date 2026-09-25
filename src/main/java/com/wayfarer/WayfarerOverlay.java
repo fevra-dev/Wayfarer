@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,8 @@ import net.runelite.api.Player;
 import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -47,6 +50,8 @@ class WayfarerOverlay extends Overlay
 	private static final int CARET_LENGTH = 6;
 	private static final int MIN_WIDTH = 240;
 	private static final int MAX_WIDTH = 480;
+	/** RuneLite's snap-corner inset (SnapCorners.BORDER). */
+	private static final int SNAP_BORDER = 5;
 
 	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 80);
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
@@ -54,6 +59,9 @@ class WayfarerOverlay extends Overlay
 
 	private static final int LOCAL_TILE_SIZE = 128;
 	private static final int MARKER_DOT_SIZE = 4;
+	/** Markers closer than this many tiles fade toward NEAR_FADE_FLOOR. */
+	private static final double NEAR_FADE_TILES = 4.0;
+	private static final double NEAR_FADE_FLOOR = 0.2;
 
 	private final Client client;
 	private final WayfarerConfig config;
@@ -70,10 +78,80 @@ class WayfarerOverlay extends Overlay
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
 
+	/** Movable sits on the TOP_CENTER snap; centred-above-chat positions itself and cannot be dragged. */
+	void applyPlacement(StripPlacement placement)
+	{
+		boolean selfPlaced = placement == StripPlacement.ABOVE_CHAT;
+		setPosition(selfPlaced ? OverlayPosition.DYNAMIC : OverlayPosition.TOP_CENTER);
+		setMovable(!selfPlaced);
+	}
+
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
 		int stripWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, (int) (client.getViewportWidth() * 0.40)));
+		int height = STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1;
+
+		if (getPosition() != OverlayPosition.DYNAMIC)
+		{
+			drawStrip(graphics, stripWidth);
+			return new Dimension(stripWidth, height);
+		}
+
+		// Centred above chat: self-positioned, so translate to our own origin.
+		Point origin = aboveChatOrigin(stripWidth, height);
+		graphics.translate(origin.x, origin.y);
+		drawStrip(graphics, stripWidth);
+		graphics.translate(-origin.x, -origin.y);
+		return null;
+	}
+
+	/**
+	 * Mirrors RuneLite's own above-chat snap line (SnapCorners: CHATBOX_TOP
+	 * less BORDER, with the collapsed-chat adjustment from OverlayManager),
+	 * centred on the same HUD container TOP_CENTER uses, so the two
+	 * placements line up vertically.
+	 */
+	private Point aboveChatOrigin(int width, int height)
+	{
+		Widget hud = topLevel(InterfaceID.ToplevelOsrsStretch.HUD_CONTAINER_FRONT,
+			InterfaceID.ToplevelPreEoc.HUD_CONTAINER_FRONT, InterfaceID.Toplevel.OVERLAY_HUD);
+		Widget chat = topLevel(InterfaceID.ToplevelOsrsStretch.CHAT_CONTAINER,
+			InterfaceID.ToplevelPreEoc.CHAT_CONTAINER, InterfaceID.Toplevel.CHAT_CONTAINER);
+
+		int centerX = hud != null
+			? hud.getBounds().x + hud.getBounds().width / 2
+			: client.getViewportXOffset() + client.getViewportWidth() / 2;
+
+		int chatTop;
+		if (chat != null)
+		{
+			chatTop = chat.getBounds().y;
+			Widget chatArea = client.getWidget(InterfaceID.Chatbox.CHATAREA);
+			if (chatArea != null && chatArea.isSelfHidden())
+			{
+				chatTop += chatArea.getBounds().height;
+			}
+		}
+		else
+		{
+			chatTop = client.getViewportYOffset() + client.getViewportHeight();
+		}
+		return new Point(centerX - width / 2, chatTop - SNAP_BORDER - height);
+	}
+
+	/** Same layout switch RuneLite uses: stretched, pre-EoC resizable, or fixed. */
+	private Widget topLevel(int stretch, int preEoc, int fixed)
+	{
+		if (!client.isResized())
+		{
+			return client.getWidget(fixed);
+		}
+		return client.getWidget(client.getTopLevelInterfaceId() == InterfaceID.TOPLEVEL_PRE_EOC ? preEoc : stretch);
+	}
+
+	private void drawStrip(Graphics2D graphics, int stripWidth)
+	{
 		int halfWidth = stripWidth / 2;
 		int centerX = halfWidth;
 		int midY = STRIP_HEIGHT / 2;
@@ -81,8 +159,9 @@ class WayfarerOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+		int arc = config.shape() == StripShape.PILL ? STRIP_HEIGHT : 0;
 		graphics.setColor(BACKGROUND);
-		graphics.fillRoundRect(0, 0, stripWidth, STRIP_HEIGHT, STRIP_HEIGHT, STRIP_HEIGHT);
+		graphics.fillRoundRect(0, 0, stripWidth, STRIP_HEIGHT, arc, arc);
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
@@ -132,8 +211,6 @@ class WayfarerOverlay extends Overlay
 		// you are pointing" (see Palette).
 		graphics.setColor(CARET);
 		graphics.drawLine(centerX, STRIP_HEIGHT + CARET_GAP, centerX, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH);
-
-		return new Dimension(stripWidth, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1);
 	}
 
 	/**
@@ -257,11 +334,12 @@ class WayfarerOverlay extends Overlay
 			return;
 		}
 
-		// Nearer reads stronger: linear distance falloff from 230 down to
-		// 120 alpha at the range cap, times the strip's own edge fade,
-		// times whatever transparency the user gave the colour.
-		double distFraction = Math.sqrt((double) distSq) / rangeLocal;
-		int alpha = (int) (edge * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
+		// Nearer reads stronger (230 alpha falling to 120 at the range cap),
+		// except the last few tiles, which go quiet (see nearFade). Times the
+		// strip's own edge fade and the user's chosen transparency.
+		double dist = Math.sqrt((double) distSq);
+		double near = CompassMath.nearFade(dist / LOCAL_TILE_SIZE, NEAR_FADE_TILES, NEAR_FADE_FLOOR);
+		int alpha = (int) (edge * near * (230 - 110 * dist / rangeLocal) * color.getAlpha() / 255.0);
 
 		int x = centerX + (int) Math.round(fraction * halfWidth);
 		graphics.setColor(Palette.withAlpha(color, alpha));

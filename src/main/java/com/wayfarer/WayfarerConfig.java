@@ -14,9 +14,40 @@ public interface WayfarerConfig extends Config
 	String GROUP = "wayfarercompass";
 
 	@ConfigSection(
+		name = "Strip",
+		description = "Where the compass strip sits and how it looks",
+		position = 0
+	)
+	String stripSection = "strip";
+
+	@ConfigItem(
+		keyName = "placement",
+		name = "Placement",
+		description = "Movable: drag with Alt held, or snap to any corner. Centred above chat: locked in the middle, just above the chatbox, staying centred when the window resizes",
+		position = 0,
+		section = stripSection
+	)
+	default StripPlacement placement()
+	{
+		return StripPlacement.MOVABLE;
+	}
+
+	@ConfigItem(
+		keyName = "shape",
+		name = "Shape",
+		description = "Rounded pill ends or square corners",
+		position = 1,
+		section = stripSection
+	)
+	default StripShape shape()
+	{
+		return StripShape.PILL;
+	}
+
+	@ConfigSection(
 		name = "Markers",
 		description = "Dots along the bottom of the strip showing which way nearby players and NPCs are. Only what the minimap already shows is marked",
-		position = 0
+		position = 1
 	)
 	String markersSection = "markers";
 

@@ -82,6 +82,24 @@ final class CompassMath
 	}
 
 	/**
+	 * Near-field fade for markers. Bearing to a moving actor changes at
+	 * speed / distance, so something passing within a tile or two swings
+	 * across the whole strip in a fraction of a second — the most
+	 * eye-catching motion on the HUD, for the actor you can already see
+	 * in the scene. Returns floor at distance 0, rising linearly to 1.0 at
+	 * fadeTiles and beyond. Quiets the flick without delaying or moving
+	 * the marker, so it still points truthfully.
+	 */
+	static double nearFade(double distanceTiles, double fadeTiles, double floor)
+	{
+		if (distanceTiles >= fadeTiles)
+		{
+			return 1.0;
+		}
+		return floor + (1.0 - floor) * Math.max(0.0, distanceTiles) / fadeTiles;
+	}
+
+	/**
 	 * Edge fade for strip elements: full alpha through the middle, linear
 	 * fade to zero over the outer fadeZone fraction of each side. Input
 	 * fraction is the screenOffsetFraction value, output is 0..1.
