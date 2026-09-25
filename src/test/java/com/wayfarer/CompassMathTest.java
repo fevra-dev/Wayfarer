@@ -2,7 +2,7 @@ package com.wayfarer;
 
 import static com.wayfarer.CompassMath.bearingDegrees;
 import static com.wayfarer.CompassMath.bearingToTarget;
-import static com.wayfarer.CompassMath.distanceHeightY;
+import static com.wayfarer.CompassMath.byDistance;
 import static com.wayfarer.CompassMath.edgeAlpha;
 import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
@@ -95,14 +95,19 @@ public class CompassMathTest
 	}
 
 	@Test
-	public void distanceHeightPutsNearLowAndFarHigh()
+	public void byDistanceMapsNearToFarAndClamps()
 	{
-		assertEquals(19, distanceHeightY(0.0, 19, 5));
-		assertEquals(12, distanceHeightY(0.5, 19, 5));
-		assertEquals(5, distanceHeightY(1.0, 19, 5));
+		assertEquals(19, byDistance(0.0, 19, 5));
+		assertEquals(12, byDistance(0.5, 19, 5));
+		assertEquals(5, byDistance(1.0, 19, 5));
 		// Clamped to the strip.
-		assertEquals(5, distanceHeightY(1.5, 19, 5));
-		assertEquals(19, distanceHeightY(-0.2, 19, 5));
+		assertEquals(5, byDistance(1.5, 19, 5));
+		assertEquals(19, byDistance(-0.2, 19, 5));
+
+		// Size runs the same way: 6px beside you, 2px at the range cap.
+		assertEquals(6, byDistance(0.0, 6, 2));
+		assertEquals(4, byDistance(0.5, 6, 2));
+		assertEquals(2, byDistance(1.0, 6, 2));
 	}
 
 	@Test

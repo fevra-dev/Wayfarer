@@ -100,15 +100,16 @@ final class CompassMath
 	}
 
 	/**
-	 * Vertical marker position when distance is shown as height: nearY at
-	 * distance 0 (bottom of the strip, beside the caret), rising linearly
-	 * to farY at the range cap, like far objects sitting higher toward the
-	 * horizon. Clamped, so nothing leaves the strip.
+	 * Linear mapping from distance (0 = beside you, 1 = range cap) to a
+	 * pixel value, clamped to [near, far]. Used for marker height (near at
+	 * the bottom rail, far rising toward the top, like distant objects
+	 * sitting higher toward the horizon) and marker size (near large, far
+	 * small).
 	 */
-	static int distanceHeightY(double distanceFraction, int nearY, int farY)
+	static int byDistance(double distanceFraction, int near, int far)
 	{
 		double f = Math.max(0.0, Math.min(1.0, distanceFraction));
-		return (int) Math.round(nearY + (farY - nearY) * f);
+		return (int) Math.round(near + (far - near) * f);
 	}
 
 	/**

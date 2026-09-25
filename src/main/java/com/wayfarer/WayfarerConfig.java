@@ -34,7 +34,7 @@ public interface WayfarerConfig extends Config
 
 	@ConfigSection(
 		name = "Markers",
-		description = "Dots along the bottom of the strip showing which way nearby players and NPCs are. Only what the minimap already shows is marked",
+		description = "Dots on the strip showing which way nearby players, NPCs and ground items are. Only what the minimap already shows is marked",
 		position = 1
 	)
 	String markersSection = "markers";
@@ -55,7 +55,7 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "playerColor",
 		name = "Player colour",
-		description = "Colour of player markers. Nearer players draw brighter",
+		description = "Colour of player markers",
 		position = 2,
 		section = markersSection
 	)
@@ -80,13 +80,13 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "monsterColor",
 		name = "Monster colour",
-		description = "Colour of markers for NPCs you can attack. Nearer ones draw brighter",
+		description = "Colour of markers for NPCs you can attack",
 		position = 4,
 		section = markersSection
 	)
 	default Color monsterColor()
 	{
-		return Palette.SIGNAL_RED;
+		return Palette.SIGNAL_ORANGE;
 	}
 
 	@ConfigItem(
@@ -105,7 +105,7 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "npcColor",
 		name = "Other NPC colour",
-		description = "Colour of markers for NPCs you can't attack. Nearer ones draw brighter",
+		description = "Colour of markers for NPCs you can't attack",
 		position = 6,
 		section = markersSection
 	)
@@ -114,12 +114,37 @@ public interface WayfarerConfig extends Config
 		return Palette.RESULT_YELLOW;
 	}
 
+	@ConfigItem(
+		keyName = "showItems",
+		name = "Ground items",
+		description = "Mark tiles with items on the ground, such as drops. One marker per tile, like the minimap's red dot",
+		position = 7,
+		section = markersSection
+	)
+	default boolean showItems()
+	{
+		return true;
+	}
+
+	@Alpha
+	@ConfigItem(
+		keyName = "itemColor",
+		name = "Ground item colour",
+		description = "Colour of ground item markers",
+		position = 8,
+		section = markersSection
+	)
+	default Color itemColor()
+	{
+		return Palette.SIGNAL_RED;
+	}
+
 	@Range(min = 1, max = 50)
 	@ConfigItem(
 		keyName = "nearbyRange",
 		name = "Range",
-		description = "How far away, in tiles, a player or NPC can be and still get a marker",
-		position = 7,
+		description = "How far away, in tiles, something can be and still get a marker",
+		position = 9,
 		section = markersSection
 	)
 	default int nearbyRange()
@@ -131,10 +156,22 @@ public interface WayfarerConfig extends Config
 		keyName = "distanceAsHeight",
 		name = "Distance as height",
 		description = "Raise markers the further away they are: close things sit at the bottom of the strip, things at the edge of range near the top",
-		position = 8,
+		position = 10,
 		section = markersSection
 	)
 	default boolean distanceAsHeight()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "distanceAsSize",
+		name = "Distance as size",
+		description = "Shrink markers the further away they are: close things draw large, things at the edge of range small. Works together with distance as height",
+		position = 11,
+		section = markersSection
+	)
+	default boolean distanceAsSize()
 	{
 		return false;
 	}
