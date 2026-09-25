@@ -41,7 +41,7 @@ public interface WayfarerConfig extends Config
 	)
 	default boolean centreOnGameView()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigSection(
@@ -173,7 +173,7 @@ public interface WayfarerConfig extends Config
 	)
 	default boolean distanceAsHeight()
 	{
-		return false;
+		return true;
 	}
 
 	@ConfigItem(

@@ -59,12 +59,12 @@ class WayfarerOverlay extends Overlay
 
 	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 80);
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
-	private static final String[] CARDINAL_LETTERS = {"N", "E", "S", "W"};
+	private static final String[] DIRECTION_LABELS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
 	private static final int LOCAL_TILE_SIZE = 128;
 	private static final int MARKER_DOT_SIZE = 4;
 	/** Distance as size: dot diameter beside you, and at the range cap. */
-	private static final int MARKER_NEAR_SIZE = 6;
+	private static final int MARKER_NEAR_SIZE = 5;
 	private static final int MARKER_FAR_SIZE = 2;
 	/** The marker rail: bottom of the strip, and where distance-as-height puts near things. */
 	private static final int MARKER_RAIL_Y = STRIP_HEIGHT - 5;
@@ -73,9 +73,9 @@ class WayfarerOverlay extends Overlay
 	/** Markers closer than this many tiles fade toward NEAR_FADE_FLOOR. */
 	private static final double NEAR_FADE_TILES = 4.0;
 	private static final double NEAR_FADE_FLOOR = 0.2;
-	/** Marker easing (see CompassMath.smoothBearing): time constant, and top speed of one strip width a second. */
-	private static final double MARKER_EASE_SECONDS = 0.2;
-	private static final double MARKER_MAX_DEG_PER_SEC = 120.0;
+	/** Marker easing (see CompassMath.smoothBearing): time constant, and top speed of half a strip width a second. */
+	private static final double MARKER_EASE_SECONDS = 0.35;
+	private static final double MARKER_MAX_DEG_PER_SEC = 60.0;
 	/** After a stall (alt-tab, loading), ease as if one short frame passed rather than jumping. */
 	private static final double MAX_FRAME_SECONDS = 0.1;
 
@@ -150,6 +150,19 @@ class WayfarerOverlay extends Overlay
 		return new Dimension(stripWidth, height);
 	}
 
+	/** Edge-faded alpha (0..1) for a strip feature at this bearing; 0 when off the strip. */
+	private static double stripAlpha(double bearing, double heading)
+	{
+		double fraction = CompassMath.screenOffsetFraction(CompassMath.signedDeltaDegrees(bearing, heading), HALF_SPAN_DEG);
+		return Math.abs(fraction) > 1.0 ? 0 : CompassMath.edgeAlpha(fraction, FADE_ZONE);
+	}
+
+	private static int stripX(double bearing, double heading, int centerX, int halfWidth)
+	{
+		double fraction = CompassMath.screenOffsetFraction(CompassMath.signedDeltaDegrees(bearing, heading), HALF_SPAN_DEG);
+		return centerX + (int) Math.round(fraction * halfWidth);
+	}
+
 	private void drawStrip(Graphics2D graphics, int stripWidth)
 	{
 		int halfWidth = stripWidth / 2;
@@ -168,42 +181,47 @@ class WayfarerOverlay extends Overlay
 		graphics.setFont(FontManager.getRunescapeSmallFont());
 		FontMetrics fm = graphics.getFontMetrics();
 
+		// Draw order, bottom to top: minor ticks, markers, then the eight
+		// direction labels. Labels go last so a marker passing through the
+		// letter band slides behind the heading instead of covering it.
 		for (int bearing = 0; bearing < 360; bearing += MINOR_TICK_STEP_DEG)
 		{
-			double fraction = CompassMath.screenOffsetFraction(
-				CompassMath.signedDeltaDegrees(bearing, heading), HALF_SPAN_DEG);
-			if (Math.abs(fraction) > 1.0)
+			if (bearing % 45 == 0)
 			{
-				continue;
+				continue; // labelled bearings carry a letter instead of a tick
 			}
-			double alpha = CompassMath.edgeAlpha(fraction, FADE_ZONE);
+			double alpha = stripAlpha(bearing, heading);
 			if (alpha <= 0)
 			{
 				continue;
 			}
-			int x = centerX + (int) Math.round(fraction * halfWidth);
-
-			if (bearing % 90 == 0)
-			{
-				String letter = CARDINAL_LETTERS[bearing / 90];
-				graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (220 * alpha)));
-				graphics.drawString(letter, x - fm.stringWidth(letter) / 2, midY + fm.getAscent() / 2 - 1);
-			}
-			else if (bearing % 45 == 0)
-			{
-				graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (140 * alpha)));
-				graphics.drawLine(x, midY - 5, x, midY + 5);
-			}
-			else
-			{
-				graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (80 * alpha)));
-				graphics.drawLine(x, midY - 3, x, midY + 3);
-			}
+			int x = stripX(bearing, heading, centerX, halfWidth);
+			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (80 * alpha)));
+			graphics.drawLine(x, midY - 3, x, midY + 3);
 		}
 
 		if (config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems())
 		{
 			renderMarkers(graphics, heading, centerX, halfWidth);
+		}
+
+		for (int i = 0; i < DIRECTION_LABELS.length; i++)
+		{
+			int bearing = i * 45;
+			double alpha = stripAlpha(bearing, heading);
+			if (alpha <= 0)
+			{
+				continue;
+			}
+			String label = DIRECTION_LABELS[i];
+			// Cardinals full strength, intercardinals a step back.
+			int strength = i % 2 == 0 ? 220 : 150;
+			int x = stripX(bearing, heading, centerX, halfWidth) - fm.stringWidth(label) / 2;
+			int y = midY + fm.getAscent() / 2 - 1;
+			graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, (int) (strength * alpha)));
+			graphics.drawString(label, x + 1, y + 1);
+			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (strength * alpha)));
+			graphics.drawString(label, x, y);
 		}
 
 		// Fixed center caret just below the strip, pointing up at the
