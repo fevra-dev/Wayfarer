@@ -1,5 +1,7 @@
 package com.wayfarer;
 
+import java.awt.Color;
+import net.runelite.client.config.Alpha;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -21,7 +23,7 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "showPlayers",
 		name = "Players",
-		description = "Mark other players (white)",
+		description = "Mark other players",
 		position = 1,
 		section = markersSection
 	)
@@ -30,11 +32,24 @@ public interface WayfarerConfig extends Config
 		return true;
 	}
 
+	@Alpha
+	@ConfigItem(
+		keyName = "playerColor",
+		name = "Player colour",
+		description = "Colour of player markers. Nearer players draw brighter",
+		position = 2,
+		section = markersSection
+	)
+	default Color playerColor()
+	{
+		return Palette.SNOW_WHITE;
+	}
+
 	@ConfigItem(
 		keyName = "showMonsters",
 		name = "Monsters",
-		description = "Mark NPCs you can attack (red)",
-		position = 2,
+		description = "Mark NPCs you can attack",
+		position = 3,
 		section = markersSection
 	)
 	default boolean showMonsters()
@@ -42,11 +57,24 @@ public interface WayfarerConfig extends Config
 		return true;
 	}
 
+	@Alpha
+	@ConfigItem(
+		keyName = "monsterColor",
+		name = "Monster colour",
+		description = "Colour of markers for NPCs you can attack. Nearer ones draw brighter",
+		position = 4,
+		section = markersSection
+	)
+	default Color monsterColor()
+	{
+		return Palette.SIGNAL_RED;
+	}
+
 	@ConfigItem(
 		keyName = "showNpcs",
 		name = "Other NPCs",
-		description = "Mark NPCs you can't attack, such as bankers and shopkeepers (yellow)",
-		position = 3,
+		description = "Mark NPCs you can't attack, such as bankers and shopkeepers",
+		position = 5,
 		section = markersSection
 	)
 	default boolean showNpcs()
@@ -54,12 +82,25 @@ public interface WayfarerConfig extends Config
 		return true;
 	}
 
+	@Alpha
+	@ConfigItem(
+		keyName = "npcColor",
+		name = "Other NPC colour",
+		description = "Colour of markers for NPCs you can't attack. Nearer ones draw brighter",
+		position = 6,
+		section = markersSection
+	)
+	default Color npcColor()
+	{
+		return Palette.RESULT_YELLOW;
+	}
+
 	@Range(min = 1, max = 50)
 	@ConfigItem(
 		keyName = "nearbyRange",
 		name = "Range",
 		description = "How far away, in tiles, a player or NPC can be and still get a marker",
-		position = 4,
+		position = 7,
 		section = markersSection
 	)
 	default int nearbyRange()

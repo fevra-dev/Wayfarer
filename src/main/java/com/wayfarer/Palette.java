@@ -13,7 +13,8 @@ import java.awt.Color;
  * - Marks and text are aged paper, never pure white: pure #FFFFFF reads
  *   as UI chrome laid over the scene; paper reads as part of the world.
  * - Surfaces are warm black, never pure black or cool gray.
- * - Marker colors are classification, nothing else.
+ * - Marker colors are classification, nothing else. They are the defaults;
+ *   players can recolor markers in the config panel.
  */
 final class Palette
 {

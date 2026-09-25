@@ -187,7 +187,7 @@ class WayfarerOverlay extends Overlay
 			}
 			else if (showNpcs)
 			{
-				drawMarker(graphics, heading, me, npc.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, Palette.RESULT_YELLOW);
+				drawMarker(graphics, heading, me, npc.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, config.npcColor());
 			}
 		}
 		if (config.showPlayers())
@@ -196,13 +196,14 @@ class WayfarerOverlay extends Overlay
 			{
 				if (player != null && player != local)
 				{
-					drawMarker(graphics, heading, me, player.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, Palette.SNOW_WHITE);
+					drawMarker(graphics, heading, me, player.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, config.playerColor());
 				}
 			}
 		}
+		Color monsterColor = config.monsterColor();
 		for (LocalPoint threat : threats)
 		{
-			drawMarker(graphics, heading, me, threat, rangeLocal, centerX, halfWidth, railY, Palette.SIGNAL_RED);
+			drawMarker(graphics, heading, me, threat, rangeLocal, centerX, halfWidth, railY, monsterColor);
 		}
 		threats.clear();
 	}
@@ -257,9 +258,10 @@ class WayfarerOverlay extends Overlay
 		}
 
 		// Nearer reads stronger: linear distance falloff from 230 down to
-		// 120 alpha at the range cap, times the strip's own edge fade.
+		// 120 alpha at the range cap, times the strip's own edge fade,
+		// times whatever transparency the user gave the colour.
 		double distFraction = Math.sqrt((double) distSq) / rangeLocal;
-		int alpha = (int) (edge * (230 - 110 * distFraction));
+		int alpha = (int) (edge * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
 
 		int x = centerX + (int) Math.round(fraction * halfWidth);
 		graphics.setColor(Palette.withAlpha(color, alpha));

@@ -24,9 +24,11 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Players**: other players (white).
 - **Monsters**: NPCs you can attack (red).
 - **Other NPCs**: everything else, such as bankers and shopkeepers (yellow).
+- **Colours**: each kind of dot has its own colour picker, including transparency.
 - **Range**: how far away (1 to 50 tiles) something can be and still get a dot. The default is 25.
 
-Turn all three off for a plain compass.
+Turn all three off for a plain compass. The **Reset** button at the bottom of the settings panel
+puts everything back to the defaults.
 
 The strip starts at the top centre of the game view. Hold Alt and drag it to move it.
 
