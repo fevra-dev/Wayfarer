@@ -23,9 +23,6 @@ screen. Only players and NPCs that already appear on your minimap are marked.
 
 Under **Strip**:
 
-- **Placement**: *Movable* (the default) sits at the top centre and can be dragged anywhere or snapped
-  to any corner with Alt held. *Centred above chat* locks it in the middle, just above the chatbox, and
-  keeps it centred when you resize the window.
 - **Shape**: rounded *Pill* ends or *Square* corners.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
@@ -35,12 +32,14 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Other NPCs**: everything else, such as bankers and shopkeepers (yellow).
 - **Colours**: each kind of dot has its own colour picker, including transparency.
 - **Range**: how far away (1 to 50 tiles) something can be and still get a dot. The default is 25.
+- **Distance as height**: raises dots the further away they are, so close things sit at the bottom of
+  the strip and distant ones near the top. Off by default.
 
 Turn all three off for a plain compass. The **Reset** button at the bottom of the settings panel
 puts everything back to the defaults.
 
-Holding Alt (Option on a Mac) and dragging is how RuneLite moves any overlay; Alt+right-click puts
-one back where it started.
+The strip starts at the top centre of the game view. To move it, hold Alt (Option on a Mac) and drag,
+the way RuneLite moves any overlay; Alt+right-click puts it back.
 
 ## What it doesn't do
 

@@ -2,6 +2,7 @@ package com.wayfarer;
 
 import static com.wayfarer.CompassMath.bearingDegrees;
 import static com.wayfarer.CompassMath.bearingToTarget;
+import static com.wayfarer.CompassMath.distanceHeightY;
 import static com.wayfarer.CompassMath.edgeAlpha;
 import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
@@ -91,6 +92,17 @@ public class CompassMathTest
 		assertEquals(1.0, nearFade(25, 4, 0.2), EPS);
 		// Never brighter than full, never below the floor.
 		assertEquals(0.2, nearFade(-1, 4, 0.2), EPS);
+	}
+
+	@Test
+	public void distanceHeightPutsNearLowAndFarHigh()
+	{
+		assertEquals(19, distanceHeightY(0.0, 19, 5));
+		assertEquals(12, distanceHeightY(0.5, 19, 5));
+		assertEquals(5, distanceHeightY(1.0, 19, 5));
+		// Clamped to the strip.
+		assertEquals(5, distanceHeightY(1.5, 19, 5));
+		assertEquals(19, distanceHeightY(-0.2, 19, 5));
 	}
 
 	@Test

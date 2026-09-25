@@ -100,6 +100,18 @@ final class CompassMath
 	}
 
 	/**
+	 * Vertical marker position when distance is shown as height: nearY at
+	 * distance 0 (bottom of the strip, beside the caret), rising linearly
+	 * to farY at the range cap, like far objects sitting higher toward the
+	 * horizon. Clamped, so nothing leaves the strip.
+	 */
+	static int distanceHeightY(double distanceFraction, int nearY, int farY)
+	{
+		double f = Math.max(0.0, Math.min(1.0, distanceFraction));
+		return (int) Math.round(nearY + (farY - nearY) * f);
+	}
+
+	/**
 	 * Edge fade for strip elements: full alpha through the middle, linear
 	 * fade to zero over the outer fadeZone fraction of each side. Input
 	 * fraction is the screenOffsetFraction value, output is 0..1.

@@ -15,28 +15,16 @@ public interface WayfarerConfig extends Config
 
 	@ConfigSection(
 		name = "Strip",
-		description = "Where the compass strip sits and how it looks",
+		description = "How the compass strip looks",
 		position = 0
 	)
 	String stripSection = "strip";
 
 	@ConfigItem(
-		keyName = "placement",
-		name = "Placement",
-		description = "Movable: drag with Alt held, or snap to any corner. Centred above chat: locked in the middle, just above the chatbox, staying centred when the window resizes",
-		position = 0,
-		section = stripSection
-	)
-	default StripPlacement placement()
-	{
-		return StripPlacement.MOVABLE;
-	}
-
-	@ConfigItem(
 		keyName = "shape",
 		name = "Shape",
 		description = "Rounded pill ends or square corners",
-		position = 1,
+		position = 0,
 		section = stripSection
 	)
 	default StripShape shape()
@@ -137,5 +125,17 @@ public interface WayfarerConfig extends Config
 	default int nearbyRange()
 	{
 		return 25;
+	}
+
+	@ConfigItem(
+		keyName = "distanceAsHeight",
+		name = "Distance as height",
+		description = "Raise markers the further away they are: close things sit at the bottom of the strip, things at the edge of range near the top",
+		position = 8,
+		section = markersSection
+	)
+	default boolean distanceAsHeight()
+	{
+		return false;
 	}
 }
