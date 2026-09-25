@@ -28,10 +28,12 @@ things that already appear on your minimap are marked.
 
 Under **Strip**:
 
-- **Shape**: rounded *Pill* ends or *Square* corners.
+- **Shape**: rounded *Pill* ends, *Square* corners, or *Pointed* tips.
 - **Centre on game view**: pins the strip to the exact top centre of the game view. RuneLite's own
   top-centre spot centres on the area left of the minimap and inventory, so it sits a little left of
   true centre. On by default; turn it off to drag the strip anywhere or snap it to a corner.
+- **Background opacity**: how solid the strip is, from 0 to 100%. The default, 65%, is the lightest
+  setting at which the letters stay clearly readable over bright scenery like fog, sand and pale stone.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
 

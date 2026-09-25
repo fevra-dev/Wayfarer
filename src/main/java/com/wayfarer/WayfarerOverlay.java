@@ -61,10 +61,6 @@ class WayfarerOverlay extends Overlay
 	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
 	private static final double ZOOM_MIN_RANGE_FRACTION = 0.35;
 
-	// 65% opaque: the lowest opacity at which PAPER labels clear 4.5:1
-	// over bright stone, sand, fog and dark ground alike (contrast-sweep,
-	// 2026-09-25: 4.57:1 worst case at 65%; the old 31% fell to ~1.6:1).
-	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 166);
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
 	private static final String[] DIRECTION_LABELS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
@@ -180,6 +176,24 @@ class WayfarerOverlay extends Overlay
 		return centerX + (int) Math.round(fraction * halfWidth);
 	}
 
+	private static void fillStripShape(Graphics2D graphics, StripShape shape, int width)
+	{
+		int h = STRIP_HEIGHT;
+		switch (shape)
+		{
+			case PILL:
+				graphics.fillRoundRect(0, 0, width, h, h, h);
+				break;
+			case POINTED:
+				// Hexagonal tips: each end comes to a point at mid-height.
+				int tip = h / 2;
+				graphics.fillPolygon(new int[]{0, tip, width - tip, width, width - tip, tip}, new int[]{tip, 0, 0, tip, h, h}, 6);
+				break;
+			default:
+				graphics.fillRect(0, 0, width, h);
+		}
+	}
+
 	private void drawStrip(Graphics2D graphics, int stripWidth)
 	{
 		int halfWidth = stripWidth / 2;
@@ -188,14 +202,19 @@ class WayfarerOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-		int arc = config.shape() == StripShape.PILL ? STRIP_HEIGHT : 0;
-		graphics.setColor(BACKGROUND);
-		graphics.fillRoundRect(0, 0, stripWidth, STRIP_HEIGHT, arc, arc);
+		// Default 65% is the lowest opacity at which PAPER labels clear 4.5:1
+		// over bright stone, sand, fog and dark ground alike (contrast-sweep,
+		// 2026-09-25: 4.57:1 worst case at 65%; 31% fell to ~1.6:1).
+		graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, config.backgroundOpacity() * 255 / 100));
+		fillStripShape(graphics, config.shape(), stripWidth);
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
-		Font cardinalFont = FontManager.getRunescapeFont();
-		Font intercardinalFont = FontManager.getRunescapeSmallFont();
+		// Bold for N/E/S/W, regular for the rest: weight carries the
+		// hierarchy. The small font was tried and dropped — its W is a pixel
+		// shorter than its N and S (7 vs 8px, measured), so NW and SW sagged.
+		Font cardinalFont = FontManager.getRunescapeBoldFont();
+		Font intercardinalFont = FontManager.getRunescapeFont();
 
 		// Draw order, bottom to top: minor ticks, markers, then the eight
 		// direction labels. Labels go last so a marker passing through the
@@ -230,9 +249,8 @@ class WayfarerOverlay extends Overlay
 				continue;
 			}
 			String label = DIRECTION_LABELS[i];
-			// Cardinals in the regular font, intercardinals in the small one.
 			// Both at full strength: dimming the intercardinals would drop
-			// them back under 4.5:1, so size carries the hierarchy instead.
+			// them back under 4.5:1, so weight carries the hierarchy instead.
 			graphics.setFont(i % 2 == 0 ? cardinalFont : intercardinalFont);
 			FontMetrics fm = graphics.getFontMetrics();
 			int strength = 255;

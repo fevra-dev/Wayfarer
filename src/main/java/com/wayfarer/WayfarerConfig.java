@@ -7,6 +7,7 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
+import net.runelite.client.config.Units;
 
 @ConfigGroup(WayfarerConfig.GROUP)
 public interface WayfarerConfig extends Config
@@ -23,7 +24,7 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "shape",
 		name = "Shape",
-		description = "Rounded pill ends or square corners",
+		description = "Rounded pill ends, square corners, or pointed tips",
 		position = 0,
 		section = stripSection
 	)
@@ -42,6 +43,20 @@ public interface WayfarerConfig extends Config
 	default boolean centreOnGameView()
 	{
 		return true;
+	}
+
+	@Range(min = 0, max = 100)
+	@Units(Units.PERCENT)
+	@ConfigItem(
+		keyName = "backgroundOpacity",
+		name = "Background opacity",
+		description = "How solid the strip behind the letters is. Below 65% the letters lose contrast over bright scenery such as fog, sand and pale stone",
+		position = 2,
+		section = stripSection
+	)
+	default int backgroundOpacity()
+	{
+		return 65;
 	}
 
 	@ConfigSection(
