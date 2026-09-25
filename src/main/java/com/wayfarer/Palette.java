@@ -13,7 +13,8 @@ import java.awt.Color;
  * - Marks and text are aged paper, never pure white: pure #FFFFFF reads
  *   as UI chrome laid over the scene; paper reads as part of the world.
  * - Surfaces are warm black, never pure black or cool gray.
- * - Marker colors are classification, nothing else.
+ * - Marker colors are classification, nothing else. They are the defaults;
+ *   players can recolor markers in the config panel.
  */
 final class Palette
 {
@@ -26,7 +27,19 @@ final class Palette
 	/** The single accent: dial-illumination amber. Pointing only. */
 	static final Color AMBER = new Color(0xE8, 0xA0, 0x20);
 
-	/** Marker for attackable NPCs (combat level &gt; 0) — red = threat. */
+	/**
+	 * Marker for attackable NPCs (combat level &gt; 0). Signal orange: the
+	 * warning colour, one step short of alarm red, and far enough round
+	 * the hue wheel from AMBER (~22 vs ~38 degrees, with RESULT_YELLOW at
+	 * ~52) that the pointing accent stays unique.
+	 */
+	static final Color SIGNAL_ORANGE = new Color(0xE8, 0x70, 0x2A);
+
+	/**
+	 * Marker for ground items. Red because the minimap already draws items
+	 * as red dots: color as function means matching the meaning players
+	 * already know.
+	 */
 	static final Color SIGNAL_RED = new Color(0xD6, 0x45, 0x45);
 
 	/**

@@ -12,6 +12,7 @@ import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
+import net.runelite.api.Tile;
 import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
@@ -54,18 +55,30 @@ class WayfarerOverlay extends Overlay
 
 	private static final int LOCAL_TILE_SIZE = 128;
 	private static final int MARKER_DOT_SIZE = 4;
+	/** Distance as size: dot diameter beside you, and at the range cap. */
+	private static final int MARKER_NEAR_SIZE = 6;
+	private static final int MARKER_FAR_SIZE = 2;
+	/** The marker rail: bottom of the strip, and where distance-as-height puts near things. */
+	private static final int MARKER_RAIL_Y = STRIP_HEIGHT - 5;
+	/** Top of the marker band when distance is shown as height. */
+	private static final int MARKER_FAR_Y = 5;
+	/** Markers closer than this many tiles fade toward NEAR_FADE_FLOOR. */
+	private static final double NEAR_FADE_TILES = 4.0;
+	private static final double NEAR_FADE_FLOOR = 0.2;
 
 	private final Client client;
 	private final WayfarerConfig config;
+	private final GroundItemTiles groundItems;
 
 	/** Reused per frame so attackable NPCs can be drawn last without a second NPC pass. */
 	private final List<LocalPoint> threats = new ArrayList<>();
 
 	@Inject
-	private WayfarerOverlay(Client client, WayfarerConfig config)
+	private WayfarerOverlay(Client client, WayfarerConfig config, GroundItemTiles groundItems)
 	{
 		this.client = client;
 		this.config = config;
+		this.groundItems = groundItems;
 		setPosition(OverlayPosition.TOP_CENTER);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
@@ -74,6 +87,12 @@ class WayfarerOverlay extends Overlay
 	public Dimension render(Graphics2D graphics)
 	{
 		int stripWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, (int) (client.getViewportWidth() * 0.40)));
+		drawStrip(graphics, stripWidth);
+		return new Dimension(stripWidth, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1);
+	}
+
+	private void drawStrip(Graphics2D graphics, int stripWidth)
+	{
 		int halfWidth = stripWidth / 2;
 		int centerX = halfWidth;
 		int midY = STRIP_HEIGHT / 2;
@@ -81,8 +100,9 @@ class WayfarerOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+		int arc = config.shape() == StripShape.PILL ? STRIP_HEIGHT : 0;
 		graphics.setColor(BACKGROUND);
-		graphics.fillRoundRect(0, 0, stripWidth, STRIP_HEIGHT, STRIP_HEIGHT, STRIP_HEIGHT);
+		graphics.fillRoundRect(0, 0, stripWidth, STRIP_HEIGHT, arc, arc);
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
@@ -122,7 +142,7 @@ class WayfarerOverlay extends Overlay
 			}
 		}
 
-		if (config.showPlayers() || config.showMonsters() || config.showNpcs())
+		if (config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems())
 		{
 			renderMarkers(graphics, heading, centerX, halfWidth);
 		}
@@ -132,14 +152,44 @@ class WayfarerOverlay extends Overlay
 		// you are pointing" (see Palette).
 		graphics.setColor(CARET);
 		graphics.drawLine(centerX, STRIP_HEIGHT + CARET_GAP, centerX, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH);
-
-		return new Dimension(stripWidth, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1);
 	}
 
 	/**
-	 * Draw order is deliberate: non-attackable NPCs (yellow) first, other
-	 * players (white) over them, attackable NPCs (red) last — a threat
-	 * marker is never buried under a crowd.
+	 * Everything a marker needs that is the same for every marker in a
+	 * frame. With distance-as-height or -as-size off, near and far are the
+	 * same value, so the distance mapping is a no-op rather than a branch.
+	 */
+	private static final class Frame
+	{
+		final double heading;
+		final LocalPoint me;
+		final int rangeLocal;
+		final int centerX;
+		final int halfWidth;
+		final int nearY;
+		final int farY;
+		final int nearSize;
+		final int farSize;
+
+		Frame(double heading, LocalPoint me, int rangeLocal, int centerX, int halfWidth,
+			int nearY, int farY, int nearSize, int farSize)
+		{
+			this.heading = heading;
+			this.me = me;
+			this.rangeLocal = rangeLocal;
+			this.centerX = centerX;
+			this.halfWidth = halfWidth;
+			this.nearY = nearY;
+			this.farY = farY;
+			this.nearSize = nearSize;
+			this.farSize = farSize;
+		}
+	}
+
+	/**
+	 * Draw order is deliberate, least urgent first: ground items (red),
+	 * non-attackable NPCs (yellow), other players (white), attackable NPCs
+	 * (orange) last — a threat marker is never buried under a crowd.
 	 *
 	 * Only NPCs the minimap itself would draw are marked. Some content
 	 * uses invisible NPCs to drive mechanics; the minimap hides those and
@@ -157,15 +207,33 @@ class WayfarerOverlay extends Overlay
 		{
 			return;
 		}
-		int rangeLocal = config.nearbyRange() * LOCAL_TILE_SIZE;
-		int railY = STRIP_HEIGHT - 5;
+		boolean bySize = config.distanceAsSize();
+		Frame frame = new Frame(heading, me, config.nearbyRange() * LOCAL_TILE_SIZE, centerX, halfWidth,
+			MARKER_RAIL_Y, config.distanceAsHeight() ? MARKER_FAR_Y : MARKER_RAIL_Y,
+			bySize ? MARKER_NEAR_SIZE : MARKER_DOT_SIZE, bySize ? MARKER_FAR_SIZE : MARKER_DOT_SIZE);
 
-		// ponytail: top-level world view only, so players and NPCs aboard
-		// other boats are not marked; iterate client.getWorldViews() and
-		// transform each through its WorldEntity if that gets asked for.
+		// ponytail: top-level world view only, so players, NPCs and items
+		// aboard other boats are not marked; iterate client.getWorldViews()
+		// and transform each through its WorldEntity if that gets asked for.
 		WorldView world = client.getTopLevelWorldView();
+
+		if (config.showItems())
+		{
+			Color itemColor = config.itemColor();
+			int plane = world.getPlane();
+			for (Tile tile : groundItems.tiles())
+			{
+				// The minimap only shows items on your own floor.
+				if (tile.getPlane() == plane)
+				{
+					drawMarker(graphics, frame, tile.getLocalLocation(), itemColor);
+				}
+			}
+		}
+
 		boolean showMonsters = config.showMonsters();
 		boolean showNpcs = config.showNpcs();
+		Color npcColor = config.npcColor();
 		threats.clear();
 		for (NPC npc : world.npcs())
 		{
@@ -187,22 +255,24 @@ class WayfarerOverlay extends Overlay
 			}
 			else if (showNpcs)
 			{
-				drawMarker(graphics, heading, me, npc.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, Palette.RESULT_YELLOW);
+				drawMarker(graphics, frame, npc.getLocalLocation(), npcColor);
 			}
 		}
 		if (config.showPlayers())
 		{
+			Color playerColor = config.playerColor();
 			for (Player player : world.players())
 			{
 				if (player != null && player != local)
 				{
-					drawMarker(graphics, heading, me, player.getLocalLocation(), rangeLocal, centerX, halfWidth, railY, Palette.SNOW_WHITE);
+					drawMarker(graphics, frame, player.getLocalLocation(), playerColor);
 				}
 			}
 		}
+		Color monsterColor = config.monsterColor();
 		for (LocalPoint threat : threats)
 		{
-			drawMarker(graphics, heading, me, threat, rangeLocal, centerX, halfWidth, railY, Palette.SIGNAL_RED);
+			drawMarker(graphics, frame, threat, monsterColor);
 		}
 		threats.clear();
 	}
@@ -225,27 +295,26 @@ class WayfarerOverlay extends Overlay
 		return boat == null ? null : boat.transformToMainWorld(lp);
 	}
 
-	private void drawMarker(Graphics2D graphics, double heading, LocalPoint me, LocalPoint them, int rangeLocal,
-		int centerX, int halfWidth, int railY, Color color)
+	private void drawMarker(Graphics2D graphics, Frame frame, LocalPoint them, Color color)
 	{
 		if (them == null)
 		{
 			return;
 		}
-		int dxEast = them.getX() - me.getX();
-		int dyNorth = them.getY() - me.getY();
+		int dxEast = them.getX() - frame.me.getX();
+		int dyNorth = them.getY() - frame.me.getY();
 		if (dxEast == 0 && dyNorth == 0)
 		{
 			return;
 		}
 		long distSq = (long) dxEast * dxEast + (long) dyNorth * dyNorth;
-		if (distSq > (long) rangeLocal * rangeLocal)
+		if (distSq > (long) frame.rangeLocal * frame.rangeLocal)
 		{
 			return;
 		}
 
 		double fraction = CompassMath.screenOffsetFraction(
-			CompassMath.signedDeltaDegrees(CompassMath.bearingToTarget(dxEast, dyNorth), heading), HALF_SPAN_DEG);
+			CompassMath.signedDeltaDegrees(CompassMath.bearingToTarget(dxEast, dyNorth), frame.heading), HALF_SPAN_DEG);
 		if (Math.abs(fraction) > 1.0)
 		{
 			return;
@@ -256,13 +325,18 @@ class WayfarerOverlay extends Overlay
 			return;
 		}
 
-		// Nearer reads stronger: linear distance falloff from 230 down to
-		// 120 alpha at the range cap, times the strip's own edge fade.
-		double distFraction = Math.sqrt((double) distSq) / rangeLocal;
-		int alpha = (int) (edge * (230 - 110 * distFraction));
+		// Nearer reads stronger (230 alpha falling to 120 at the range cap),
+		// except the last few tiles, which go quiet (see nearFade). Times the
+		// strip's own edge fade and the user's chosen transparency.
+		double dist = Math.sqrt((double) distSq);
+		double distFraction = dist / frame.rangeLocal;
+		double near = CompassMath.nearFade(dist / LOCAL_TILE_SIZE, NEAR_FADE_TILES, NEAR_FADE_FLOOR);
+		int alpha = (int) (edge * near * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
 
-		int x = centerX + (int) Math.round(fraction * halfWidth);
+		int x = frame.centerX + (int) Math.round(fraction * frame.halfWidth);
+		int y = CompassMath.byDistance(distFraction, frame.nearY, frame.farY);
+		int size = CompassMath.byDistance(distFraction, frame.nearSize, frame.farSize);
 		graphics.setColor(Palette.withAlpha(color, alpha));
-		graphics.fillOval(x - MARKER_DOT_SIZE / 2, railY - MARKER_DOT_SIZE / 2, MARKER_DOT_SIZE, MARKER_DOT_SIZE);
+		graphics.fillOval(x - size / 2, y - size / 2, size, size);
 	}
 }
