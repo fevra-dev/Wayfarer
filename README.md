@@ -19,7 +19,9 @@ around you and which way it is.
 Closer things draw brighter, except within the last few tiles, where dots fade back down: something
 running right past you swings across the whole strip in a blink, and you can already see it on
 screen. Dots also glide rather than jump: each eases toward its true direction and never moves faster
-than half a strip width a second, while turning your camera still moves everything instantly. Only
+than half a strip width a second, while turning your camera still moves everything instantly. When
+someone runs straight through you, their dot fades back in on the other side instead of sliding the
+long way round. Only
 things that already appear on your minimap are marked.
 
 ## Options
@@ -40,8 +42,8 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Colours**: each kind of dot has its own colour picker, including transparency.
 - **Range**: how far away (1 to 50 tiles) something can be and still get a dot. The default is 25.
 - **Distance as height**: raises dots the further away they are, so close things sit at the bottom of
-  the strip and distant ones near the top. On by default. Direction letters always draw on top, so
-  dots pass behind them.
+  their lane and distant ones near the top of it. On by default. Dots have their own lane under the
+  direction letters, so they never cover them.
 - **Distance as size**: shrinks dots the further away they are, so close things draw large and distant
   ones small. Off by default, and works together with distance as height.
 - **Range follows zoom**: zoomed all the way out, dots reach your full Range; zooming in narrows them

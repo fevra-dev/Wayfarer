@@ -1,9 +1,11 @@
 package com.wayfarer;
 
+import static com.wayfarer.CompassMath.appearFade;
 import static com.wayfarer.CompassMath.bearingDegrees;
 import static com.wayfarer.CompassMath.bearingToTarget;
 import static com.wayfarer.CompassMath.byDistance;
 import static com.wayfarer.CompassMath.edgeAlpha;
+import static com.wayfarer.CompassMath.isFlip;
 import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
 import static com.wayfarer.CompassMath.signedDeltaDegrees;
@@ -121,6 +123,25 @@ public class CompassMathTest
 		// Clamped zoom, and never below one tile.
 		assertEquals(25.0, zoomedRange(25, -0.3, 0.35), EPS);
 		assertEquals(1.0, zoomedRange(2, 1.0, 0.35), EPS);
+	}
+
+	@Test
+	public void flipsSnapInsteadOfSlidingTheLongWay()
+	{
+		// Running straight through you: ahead (0) to behind (180) is a flip.
+		assertTrue(isFlip(0, 180, 90));
+		// Ordinary movement across north is not.
+		assertTrue(!isFlip(350, 10, 90));
+		assertTrue(!isFlip(40, 120, 90));
+		assertTrue(isFlip(40, 140, 90));
+	}
+
+	@Test
+	public void appearFadeRampsInThenHolds()
+	{
+		assertEquals(0.0, appearFade(0, 0.3), EPS);
+		assertEquals(0.5, appearFade(0.15, 0.3), EPS);
+		assertEquals(1.0, appearFade(2, 0.3), EPS);
 	}
 
 	@Test

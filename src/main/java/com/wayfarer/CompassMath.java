@@ -115,6 +115,23 @@ final class CompassMath
 	}
 
 	/**
+	 * True when a marker's true bearing has jumped more than snapDegrees from
+	 * where it is shown — e.g. someone running straight through you, whose
+	 * bearing flips ~180 degrees. Easing that would slide the marker the
+	 * long way across the strip; the caller snaps and fades it instead.
+	 */
+	static boolean isFlip(double shown, double target, double snapDegrees)
+	{
+		return Math.abs(signedDeltaDegrees(target, shown)) > snapDegrees;
+	}
+
+	/** Fade-in for a marker that appeared or snapped ageSeconds ago: 0 -> 1 over fadeSeconds. */
+	static double appearFade(double ageSeconds, double fadeSeconds)
+	{
+		return Math.max(0.0, Math.min(1.0, ageSeconds / fadeSeconds));
+	}
+
+	/**
 	 * Near-field fade for markers. Bearing to a moving actor changes at
 	 * speed / distance, so something passing within a tile or two swings
 	 * across the whole strip in a fraction of a second — the most

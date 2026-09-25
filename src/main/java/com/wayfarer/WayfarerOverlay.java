@@ -2,6 +2,7 @@ package com.wayfarer;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -47,7 +48,10 @@ class WayfarerOverlay extends Overlay
 	private static final int MINOR_TICK_STEP_DEG = 15;
 
 	// Spacing on the 8dp grid (see Palette for the color rules).
-	private static final int STRIP_HEIGHT = 24;
+	// Two lanes, so text and markers never overlap: a label band on top
+	// (ticks and N/NE/E...) and a marker lane beneath it.
+	private static final int STRIP_HEIGHT = 30;
+	private static final int LABEL_BAND_MID = 9;
 	private static final int CARET_GAP = 2;
 	private static final int CARET_LENGTH = 6;
 	private static final int MIN_WIDTH = 240;
@@ -57,7 +61,10 @@ class WayfarerOverlay extends Overlay
 	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
 	private static final double ZOOM_MIN_RANGE_FRACTION = 0.35;
 
-	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 80);
+	// 65% opaque: the lowest opacity at which PAPER labels clear 4.5:1
+	// over bright stone, sand, fog and dark ground alike (contrast-sweep,
+	// 2026-09-25: 4.57:1 worst case at 65%; the old 31% fell to ~1.6:1).
+	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 166);
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
 	private static final String[] DIRECTION_LABELS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
@@ -69,7 +76,7 @@ class WayfarerOverlay extends Overlay
 	/** The marker rail: bottom of the strip, and where distance-as-height puts near things. */
 	private static final int MARKER_RAIL_Y = STRIP_HEIGHT - 5;
 	/** Top of the marker band when distance is shown as height. */
-	private static final int MARKER_FAR_Y = 5;
+	private static final int MARKER_FAR_Y = STRIP_HEIGHT - 11;
 	/** Markers closer than this many tiles fade toward NEAR_FADE_FLOOR. */
 	private static final double NEAR_FADE_TILES = 4.0;
 	private static final double NEAR_FADE_FLOOR = 0.2;
@@ -78,6 +85,14 @@ class WayfarerOverlay extends Overlay
 	private static final double MARKER_MAX_DEG_PER_SEC = 60.0;
 	/** After a stall (alt-tab, loading), ease as if one short frame passed rather than jumping. */
 	private static final double MAX_FRAME_SECONDS = 0.1;
+	/**
+	 * A true bearing that jumps further than this in one frame (someone
+	 * running straight through you flips ~180 degrees) is not eased the
+	 * long way round the strip: the marker fades back in at its new place.
+	 */
+	private static final double MARKER_SNAP_DEG = 90.0;
+	/** New and snapped markers fade in over this long instead of popping. */
+	private static final double MARKER_FADE_IN_SECONDS = 0.3;
 
 	private final Client client;
 	private final WayfarerConfig config;
@@ -96,11 +111,13 @@ class WayfarerOverlay extends Overlay
 	private long frameNumber;
 	private long lastFrameNanos;
 	private double frameSeconds;
+	private double clockSeconds;
 
 	private static final class ShownBearing
 	{
 		double bearing;
 		long frame;
+		double born;
 	}
 
 	@Inject
@@ -167,7 +184,6 @@ class WayfarerOverlay extends Overlay
 	{
 		int halfWidth = stripWidth / 2;
 		int centerX = halfWidth;
-		int midY = STRIP_HEIGHT / 2;
 
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -178,8 +194,8 @@ class WayfarerOverlay extends Overlay
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
-		graphics.setFont(FontManager.getRunescapeSmallFont());
-		FontMetrics fm = graphics.getFontMetrics();
+		Font cardinalFont = FontManager.getRunescapeFont();
+		Font intercardinalFont = FontManager.getRunescapeSmallFont();
 
 		// Draw order, bottom to top: minor ticks, markers, then the eight
 		// direction labels. Labels go last so a marker passing through the
@@ -197,7 +213,7 @@ class WayfarerOverlay extends Overlay
 			}
 			int x = stripX(bearing, heading, centerX, halfWidth);
 			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (80 * alpha)));
-			graphics.drawLine(x, midY - 3, x, midY + 3);
+			graphics.drawLine(x, LABEL_BAND_MID - 3, x, LABEL_BAND_MID + 3);
 		}
 
 		if (config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems())
@@ -214,10 +230,14 @@ class WayfarerOverlay extends Overlay
 				continue;
 			}
 			String label = DIRECTION_LABELS[i];
-			// Cardinals full strength, intercardinals a step back.
-			int strength = i % 2 == 0 ? 220 : 150;
+			// Cardinals in the regular font, intercardinals in the small one.
+			// Both at full strength: dimming the intercardinals would drop
+			// them back under 4.5:1, so size carries the hierarchy instead.
+			graphics.setFont(i % 2 == 0 ? cardinalFont : intercardinalFont);
+			FontMetrics fm = graphics.getFontMetrics();
+			int strength = 255;
 			int x = stripX(bearing, heading, centerX, halfWidth) - fm.stringWidth(label) / 2;
-			int y = midY + fm.getAscent() / 2 - 1;
+			int y = LABEL_BAND_MID + fm.getAscent() / 2 - 1;
 			graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, (int) (strength * alpha)));
 			graphics.drawString(label, x + 1, y + 1);
 			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (strength * alpha)));
@@ -296,6 +316,7 @@ class WayfarerOverlay extends Overlay
 		frameSeconds = lastFrameNanos == 0 ? 0 : Math.min(MAX_FRAME_SECONDS, (now - lastFrameNanos) / 1e9);
 		lastFrameNanos = now;
 		frameNumber++;
+		clockSeconds += frameSeconds;
 
 		// ponytail: top-level world view only, so players, NPCs and items
 		// aboard other boats are not marked; iterate client.getWorldViews()
@@ -386,22 +407,32 @@ class WayfarerOverlay extends Overlay
 		return (zoom - min) / (double) (max - min);
 	}
 
-	/** Eased bearing for this marker; a marker new this frame starts at its true bearing. */
-	private double shownBearing(Object key, double trueBearing)
+	/**
+	 * This marker's shown bearing: eased toward the true bearing, or
+	 * snapped (and faded back in) when the true bearing flips. A marker new
+	 * this frame starts at its true bearing and fades in.
+	 */
+	private ShownBearing track(Object key, double trueBearing)
 	{
 		ShownBearing s = shownBearings.get(key);
 		if (s == null)
 		{
 			s = new ShownBearing();
 			s.bearing = trueBearing;
+			s.born = clockSeconds;
 			shownBearings.put(key, s);
+		}
+		else if (CompassMath.isFlip(s.bearing, trueBearing, MARKER_SNAP_DEG))
+		{
+			s.bearing = trueBearing;
+			s.born = clockSeconds;
 		}
 		else
 		{
 			s.bearing = CompassMath.smoothBearing(s.bearing, trueBearing, frameSeconds, MARKER_EASE_SECONDS, MARKER_MAX_DEG_PER_SEC);
 		}
 		s.frame = frameNumber;
-		return s.bearing;
+		return s;
 	}
 
 	/**
@@ -440,8 +471,9 @@ class WayfarerOverlay extends Overlay
 			return;
 		}
 
+		ShownBearing shown = track(key, CompassMath.bearingToTarget(dxEast, dyNorth));
 		double fraction = CompassMath.screenOffsetFraction(
-			CompassMath.signedDeltaDegrees(shownBearing(key, CompassMath.bearingToTarget(dxEast, dyNorth)), frame.heading), HALF_SPAN_DEG);
+			CompassMath.signedDeltaDegrees(shown.bearing, frame.heading), HALF_SPAN_DEG);
 		if (Math.abs(fraction) > 1.0)
 		{
 			return;
@@ -458,7 +490,8 @@ class WayfarerOverlay extends Overlay
 		double dist = Math.sqrt((double) distSq);
 		double distFraction = dist / frame.rangeLocal;
 		double near = CompassMath.nearFade(dist / LOCAL_TILE_SIZE, NEAR_FADE_TILES, NEAR_FADE_FLOOR);
-		int alpha = (int) (edge * near * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
+		double appear = CompassMath.appearFade(clockSeconds - shown.born, MARKER_FADE_IN_SECONDS);
+		int alpha = (int) (edge * near * appear * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
 
 		int x = frame.centerX + (int) Math.round(fraction * frame.halfWidth);
 		int y = CompassMath.byDistance(distFraction, frame.nearY, frame.farY);
