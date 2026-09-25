@@ -6,7 +6,8 @@ import lombok.RequiredArgsConstructor;
 public enum StripShape
 {
 	PILL("Pill"),
-	SQUARE("Square");
+	SQUARE("Square"),
+	POINTED("Pointed");
 
 	private final String label;
 

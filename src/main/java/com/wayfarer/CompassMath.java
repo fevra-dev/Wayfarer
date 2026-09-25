@@ -104,6 +104,35 @@ final class CompassMath
 	}
 
 	/**
+	 * Marker range under "range follows zoom": the full range when zoomed
+	 * all the way out (zoomIn 0), shrinking linearly to minFraction of it
+	 * when zoomed all the way in (zoomIn 1). Never below floorTiles (or the
+	 * full range, if that is smaller).
+	 */
+	static double zoomedRange(double rangeTiles, double zoomIn, double minFraction, double floorTiles)
+	{
+		double z = Math.max(0.0, Math.min(1.0, zoomIn));
+		return Math.max(Math.min(floorTiles, rangeTiles), rangeTiles * (1.0 - (1.0 - minFraction) * z));
+	}
+
+	/**
+	 * True when a marker's true bearing has jumped more than snapDegrees from
+	 * where it is shown — e.g. someone running straight through you, whose
+	 * bearing flips ~180 degrees. Easing that would slide the marker the
+	 * long way across the strip; the caller snaps and fades it instead.
+	 */
+	static boolean isFlip(double shown, double target, double snapDegrees)
+	{
+		return Math.abs(signedDeltaDegrees(target, shown)) > snapDegrees;
+	}
+
+	/** Fade-in for a marker that appeared or snapped ageSeconds ago: 0 -> 1 over fadeSeconds. */
+	static double appearFade(double ageSeconds, double fadeSeconds)
+	{
+		return Math.max(0.0, Math.min(1.0, ageSeconds / fadeSeconds));
+	}
+
+	/**
 	 * Near-field fade for markers. Bearing to a moving actor changes at
 	 * speed / distance, so something passing within a tile or two swings
 	 * across the whole strip in a fraction of a second — the most

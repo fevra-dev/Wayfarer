@@ -1,13 +1,16 @@
 package com.wayfarer;
 
+import static com.wayfarer.CompassMath.appearFade;
 import static com.wayfarer.CompassMath.bearingDegrees;
 import static com.wayfarer.CompassMath.bearingToTarget;
 import static com.wayfarer.CompassMath.byDistance;
 import static com.wayfarer.CompassMath.edgeAlpha;
+import static com.wayfarer.CompassMath.isFlip;
 import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
 import static com.wayfarer.CompassMath.signedDeltaDegrees;
 import static com.wayfarer.CompassMath.smoothBearing;
+import static com.wayfarer.CompassMath.zoomedRange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -109,6 +112,39 @@ public class CompassMathTest
 			b = smoothBearing(b, 10, 0.016, 0.2, 120);
 		}
 		assertEquals(10.0, b, 0.01);
+	}
+
+	@Test
+	public void zoomedRangeNarrowsAsYouZoomIn()
+	{
+		assertEquals(25.0, zoomedRange(25, 0.0, 0.35, 4), EPS);
+		assertEquals(8.75, zoomedRange(25, 1.0, 0.35, 4), EPS);
+		assertEquals(16.875, zoomedRange(25, 0.5, 0.35, 4), EPS);
+		// Clamped zoom.
+		assertEquals(25.0, zoomedRange(25, -0.3, 0.35, 4), EPS);
+		// Never narrower than the floor: 9 tiles zoomed in would be 3.15.
+		assertEquals(4.0, zoomedRange(9, 1.0, 0.35, 4), EPS);
+		// Unless the full range is already smaller than the floor.
+		assertEquals(3.0, zoomedRange(3, 1.0, 0.35, 4), EPS);
+	}
+
+	@Test
+	public void flipsSnapInsteadOfSlidingTheLongWay()
+	{
+		// Running straight through you: ahead (0) to behind (180) is a flip.
+		assertTrue(isFlip(0, 180, 90));
+		// Ordinary movement across north is not.
+		assertTrue(!isFlip(350, 10, 90));
+		assertTrue(!isFlip(40, 120, 90));
+		assertTrue(isFlip(40, 140, 90));
+	}
+
+	@Test
+	public void appearFadeRampsInThenHolds()
+	{
+		assertEquals(0.0, appearFade(0, 0.3), EPS);
+		assertEquals(0.5, appearFade(0.15, 0.3), EPS);
+		assertEquals(1.0, appearFade(2, 0.3), EPS);
 	}
 
 	@Test

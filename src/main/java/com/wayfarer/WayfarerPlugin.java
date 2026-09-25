@@ -10,6 +10,7 @@ import net.runelite.api.events.WorldViewUnloaded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -34,12 +35,16 @@ public class WayfarerPlugin extends Plugin
 	private Client client;
 
 	@Inject
+	private WayfarerConfig config;
+
+	@Inject
 	private ClientThread clientThread;
 
 	@Override
 	protected void startUp()
 	{
 		overlayManager.add(overlay);
+		applyCentring();
 		clientThread.invoke(() ->
 		{
 			if (client.getGameState() == GameState.LOGGED_IN)
@@ -55,6 +60,30 @@ public class WayfarerPlugin extends Plugin
 		overlayManager.remove(overlay);
 		// The overlay reads the set on the client thread; clear it there too.
 		clientThread.invoke(groundItems::clear);
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (WayfarerConfig.GROUP.equals(event.getGroup()) && "centreOnGameView".equals(event.getKey()))
+		{
+			applyCentring();
+		}
+	}
+
+	/**
+	 * A saved drag location outranks even a DYNAMIC overlay's own placement
+	 * (OverlayRenderer applies preferredLocation first), so centring clears
+	 * it on the way in — the same reset as Alt+right-click.
+	 */
+	private void applyCentring()
+	{
+		boolean centred = config.centreOnGameView();
+		if (centred)
+		{
+			overlayManager.resetOverlay(overlay);
+		}
+		overlay.setCentred(centred);
 	}
 
 	@Subscribe
