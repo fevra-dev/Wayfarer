@@ -117,12 +117,15 @@ public class CompassMathTest
 	@Test
 	public void zoomedRangeNarrowsAsYouZoomIn()
 	{
-		assertEquals(25.0, zoomedRange(25, 0.0, 0.35), EPS);
-		assertEquals(8.75, zoomedRange(25, 1.0, 0.35), EPS);
-		assertEquals(16.875, zoomedRange(25, 0.5, 0.35), EPS);
-		// Clamped zoom, and never below one tile.
-		assertEquals(25.0, zoomedRange(25, -0.3, 0.35), EPS);
-		assertEquals(1.0, zoomedRange(2, 1.0, 0.35), EPS);
+		assertEquals(25.0, zoomedRange(25, 0.0, 0.35, 4), EPS);
+		assertEquals(8.75, zoomedRange(25, 1.0, 0.35, 4), EPS);
+		assertEquals(16.875, zoomedRange(25, 0.5, 0.35, 4), EPS);
+		// Clamped zoom.
+		assertEquals(25.0, zoomedRange(25, -0.3, 0.35, 4), EPS);
+		// Never narrower than the floor: 9 tiles zoomed in would be 3.15.
+		assertEquals(4.0, zoomedRange(9, 1.0, 0.35, 4), EPS);
+		// Unless the full range is already smaller than the floor.
+		assertEquals(3.0, zoomedRange(3, 1.0, 0.35, 4), EPS);
 	}
 
 	@Test

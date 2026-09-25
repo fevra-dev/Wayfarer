@@ -42,14 +42,15 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Other NPCs**: everything else, such as bankers and shopkeepers (yellow).
 - **Ground items**: tiles with items on them, such as drops (red).
 - **Colours**: each kind of dot has its own colour picker, including transparency.
-- **Range**: how far away (1 to 50 tiles) something can be and still get a dot. The default is 25.
+- **Range**: how far away (4 to 50 tiles) something can be and still get a dot. The default is 25.
 - **Distance as height**: raises dots the further away they are, so close things sit at the bottom of
   their lane and distant ones near the top of it. On by default. Dots have their own lane under the
   direction letters, so they never cover them.
 - **Distance as size**: shrinks dots the further away they are, so close things draw large and distant
   ones small. Off by default, and works together with distance as height.
 - **Range follows zoom**: zoomed all the way out, dots reach your full Range; zooming in narrows them
-  to roughly the nearest third, the way the minimap shows less as it zooms in. Off by default.
+  to roughly the nearest third (never under 4 tiles), the way the minimap shows less as it zooms in.
+  Off by default.
 
 Turn them all off for a plain compass. The **Reset** button at the bottom of the settings panel
 puts everything back to the defaults.

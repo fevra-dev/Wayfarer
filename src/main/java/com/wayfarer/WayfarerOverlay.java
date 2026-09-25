@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
@@ -60,6 +61,8 @@ class WayfarerOverlay extends Overlay
 	private static final int CENTRED_TOP_MARGIN = 5;
 	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
 	private static final double ZOOM_MIN_RANGE_FRACTION = 0.35;
+	/** ...but never narrower than this; at 1-3 tiles the strip empties out. */
+	private static final double ZOOM_RANGE_FLOOR_TILES = 4.0;
 
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
 	private static final String[] DIRECTION_LABELS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
@@ -96,6 +99,8 @@ class WayfarerOverlay extends Overlay
 
 	/** Reused per frame so attackable NPCs can be drawn last without a second NPC pass. */
 	private final List<NPC> threats = new ArrayList<>();
+	/** Reused per frame: the main world view plus one per boat. */
+	private final List<WorldView> views = new ArrayList<>();
 
 	/**
 	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
@@ -324,7 +329,7 @@ class WayfarerOverlay extends Overlay
 		}
 		boolean bySize = config.distanceAsSize();
 		double rangeTiles = config.rangeFollowsZoom()
-			? CompassMath.zoomedRange(config.nearbyRange(), zoomIn(), ZOOM_MIN_RANGE_FRACTION)
+			? CompassMath.zoomedRange(config.nearbyRange(), zoomIn(), ZOOM_MIN_RANGE_FRACTION, ZOOM_RANGE_FLOOR_TILES)
 			: config.nearbyRange();
 		Frame frame = new Frame(heading, me, (int) Math.round(rangeTiles * LOCAL_TILE_SIZE), centerX, halfWidth,
 			MARKER_RAIL_Y, config.distanceAsHeight() ? MARKER_FAR_Y : MARKER_RAIL_Y,
@@ -336,10 +341,20 @@ class WayfarerOverlay extends Overlay
 		frameNumber++;
 		clockSeconds += frameSeconds;
 
-		// ponytail: top-level world view only, so players, NPCs and items
-		// aboard other boats are not marked; iterate client.getWorldViews()
-		// and transform each through its WorldEntity if that gets asked for.
+		// Actors live in the main world view or aboard a boat (Sailing), each
+		// boat being its own world view. Scan them all; positions are carried
+		// into main-world coordinates by mainWorldLocation.
+		// ponytail: ground items are still top-level only (GroundItemTiles).
 		WorldView world = client.getTopLevelWorldView();
+		views.clear();
+		views.add(world);
+		for (WorldEntity boat : world.worldEntities())
+		{
+			if (boat != null && boat.getWorldView() != null)
+			{
+				views.add(boat.getWorldView());
+			}
+		}
 
 		if (config.showItems())
 		{
@@ -359,44 +374,50 @@ class WayfarerOverlay extends Overlay
 		boolean showNpcs = config.showNpcs();
 		Color npcColor = config.npcColor();
 		threats.clear();
-		for (NPC npc : world.npcs())
+		for (WorldView view : views)
 		{
-			if (npc == null || npc.isDead())
+			for (NPC npc : view.npcs())
 			{
-				continue;
-			}
-			NPCComposition composition = npc.getTransformedComposition();
-			if (composition == null || !composition.isMinimapVisible())
-			{
-				continue;
-			}
-			if (npc.getCombatLevel() > 0)
-			{
-				if (showMonsters)
+				if (npc == null || npc.isDead())
 				{
-					threats.add(npc);
+					continue;
 				}
-			}
-			else if (showNpcs)
-			{
-				drawMarker(graphics, frame, npc, npc.getLocalLocation(), npcColor);
+				NPCComposition composition = npc.getTransformedComposition();
+				if (composition == null || !composition.isMinimapVisible())
+				{
+					continue;
+				}
+				if (npc.getCombatLevel() > 0)
+				{
+					if (showMonsters)
+					{
+						threats.add(npc);
+					}
+				}
+				else if (showNpcs)
+				{
+					drawMarker(graphics, frame, npc, mainWorldLocation(npc), npcColor);
+				}
 			}
 		}
 		if (config.showPlayers())
 		{
 			Color playerColor = config.playerColor();
-			for (Player player : world.players())
+			for (WorldView view : views)
 			{
-				if (player != null && player != local)
+				for (Player player : view.players())
 				{
-					drawMarker(graphics, frame, player, player.getLocalLocation(), playerColor);
+					if (player != null && player != local)
+					{
+						drawMarker(graphics, frame, player, mainWorldLocation(player), playerColor);
+					}
 				}
 			}
 		}
 		Color monsterColor = config.monsterColor();
 		for (NPC threat : threats)
 		{
-			drawMarker(graphics, frame, threat, threat.getLocalLocation(), monsterColor);
+			drawMarker(graphics, frame, threat, mainWorldLocation(threat), monsterColor);
 		}
 		threats.clear();
 		shownBearings.values().removeIf(s -> s.frame != frameNumber);
@@ -454,15 +475,15 @@ class WayfarerOverlay extends Overlay
 	}
 
 	/**
-	 * The local player's position in top-level world coordinates. Aboard a
-	 * boat (Sailing), the player lives in the boat's own world view, whose
-	 * local coordinates mean nothing against the main world's NPCs, so the
-	 * point is carried through the boat's WorldEntity first.
+	 * An actor's position in top-level world coordinates. Aboard a boat
+	 * (Sailing), an actor lives in the boat's own world view, whose local
+	 * coordinates mean nothing against the main world, so the point is
+	 * carried through the boat's WorldEntity first.
 	 */
-	private LocalPoint mainWorldLocation(Player local)
+	private LocalPoint mainWorldLocation(Actor actor)
 	{
-		LocalPoint lp = local.getLocalLocation();
-		WorldView view = local.getWorldView();
+		LocalPoint lp = actor.getLocalLocation();
+		WorldView view = actor.getWorldView();
 		if (lp == null || view == null || view.isTopLevel())
 		{
 			return lp;

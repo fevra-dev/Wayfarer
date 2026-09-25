@@ -106,12 +106,13 @@ final class CompassMath
 	/**
 	 * Marker range under "range follows zoom": the full range when zoomed
 	 * all the way out (zoomIn 0), shrinking linearly to minFraction of it
-	 * when zoomed all the way in (zoomIn 1). Never below one tile.
+	 * when zoomed all the way in (zoomIn 1). Never below floorTiles (or the
+	 * full range, if that is smaller).
 	 */
-	static double zoomedRange(double rangeTiles, double zoomIn, double minFraction)
+	static double zoomedRange(double rangeTiles, double zoomIn, double minFraction, double floorTiles)
 	{
 		double z = Math.max(0.0, Math.min(1.0, zoomIn));
-		return Math.max(1.0, rangeTiles * (1.0 - (1.0 - minFraction) * z));
+		return Math.max(Math.min(floorTiles, rangeTiles), rangeTiles * (1.0 - (1.0 - minFraction) * z));
 	}
 
 	/**

@@ -166,7 +166,7 @@ public interface WayfarerConfig extends Config
 		return Palette.SIGNAL_RED;
 	}
 
-	@Range(min = 1, max = 50)
+	@Range(min = 4, max = 50)
 	@ConfigItem(
 		keyName = "nearbyRange",
 		name = "Range",
