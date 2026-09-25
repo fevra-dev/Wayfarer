@@ -82,6 +82,28 @@ final class CompassMath
 	}
 
 	/**
+	 * Eases a marker's shown bearing toward its true bearing so nothing
+	 * on the strip moves in a jarring snap: an exponential approach with
+	 * time constant tauSeconds, and never faster than maxDegreesPerSecond.
+	 * Takes the short way round across north. Only the target's world
+	 * bearing is eased — the camera heading is not — so turning the camera
+	 * still moves the tape and every marker instantly.
+	 */
+	static double smoothBearing(double shown, double target, double dtSeconds, double tauSeconds, double maxDegreesPerSecond)
+	{
+		if (dtSeconds <= 0)
+		{
+			return shown;
+		}
+		double delta = signedDeltaDegrees(target, shown);
+		double step = delta * (1.0 - Math.exp(-dtSeconds / tauSeconds));
+		double cap = maxDegreesPerSecond * dtSeconds;
+		step = Math.max(-cap, Math.min(cap, step));
+		double result = (shown + step) % 360.0;
+		return result < 0 ? result + 360.0 : result;
+	}
+
+	/**
 	 * Near-field fade for markers. Bearing to a moving actor changes at
 	 * speed / distance, so something passing within a tile or two swings
 	 * across the whole strip in a fraction of a second — the most

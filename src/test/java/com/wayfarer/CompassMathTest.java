@@ -7,6 +7,7 @@ import static com.wayfarer.CompassMath.edgeAlpha;
 import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
 import static com.wayfarer.CompassMath.signedDeltaDegrees;
+import static com.wayfarer.CompassMath.smoothBearing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -81,6 +82,33 @@ public class CompassMathTest
 		assertEquals(0.0, edgeAlpha(1.0, 0.22), EPS);
 		assertEquals(0.0, edgeAlpha(-1.0, 0.22), EPS);
 		assertEquals(0.5, edgeAlpha(0.89, 0.22), 0.001);
+	}
+
+	@Test
+	public void smoothBearingIsCappedAndEases()
+	{
+		// A 90 degree jump in one 100ms frame moves at most 12 degrees (120/s cap).
+		assertEquals(12.0, smoothBearing(0, 90, 0.1, 0.2, 120), EPS);
+		// A small change eases rather than snapping: part way, not all the way.
+		double eased = smoothBearing(0, 5, 0.016, 0.2, 120);
+		assertTrue("got " + eased, eased > 0 && eased < 5);
+		// No time passed, no movement.
+		assertEquals(40.0, smoothBearing(40, 90, 0, 0.2, 120), EPS);
+	}
+
+	@Test
+	public void smoothBearingTakesTheShortWayAcrossNorth()
+	{
+		// 350 -> 10 must go up through 360/0, not back down through 180.
+		double shown = smoothBearing(350, 10, 0.1, 0.2, 120);
+		assertTrue("got " + shown, shown > 350 || shown < 10);
+		// And it gets there: many frames later it has settled on the target.
+		double b = 350;
+		for (int i = 0; i < 200; i++)
+		{
+			b = smoothBearing(b, 10, 0.016, 0.2, 120);
+		}
+		assertEquals(10.0, b, 0.01);
 	}
 
 	@Test
