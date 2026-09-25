@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import net.runelite.api.Tile;
 import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -50,6 +52,10 @@ class WayfarerOverlay extends Overlay
 	private static final int CARET_LENGTH = 6;
 	private static final int MIN_WIDTH = 240;
 	private static final int MAX_WIDTH = 480;
+	/** Gap above the centred strip; RuneLite's snap corners inset by the same 5px. */
+	private static final int CENTRED_TOP_MARGIN = 5;
+	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
+	private static final double ZOOM_MIN_RANGE_FRACTION = 0.35;
 
 	private static final Color BACKGROUND = Palette.withAlpha(Palette.WARM_BLACK, 80);
 	private static final Color CARET = Palette.withAlpha(Palette.AMBER, 230);
@@ -107,12 +113,41 @@ class WayfarerOverlay extends Overlay
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
 
+	/** Snap/drag as a normal overlay, or pinned to the true top centre of the game view. */
+	void setCentred(boolean centred)
+	{
+		setPosition(centred ? OverlayPosition.DYNAMIC : OverlayPosition.TOP_CENTER);
+		setMovable(!centred);
+	}
+
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
 		int stripWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, (int) (client.getViewportWidth() * 0.40)));
+		int height = STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1;
+		if (getPosition() != OverlayPosition.DYNAMIC)
+		{
+			drawStrip(graphics, stripWidth);
+			return new Dimension(stripWidth, height);
+		}
+
+		// Centred: for a DYNAMIC overlay RuneLite translates the graphics to
+		// wherever the overlay was drawn LAST frame (OverlayRenderer: location
+		// = bounds.x/y, then safeRender translates by it). Drawing at an
+		// absolute point on top of that counts the offset twice, which is
+		// what put an earlier self-positioned version far right of centre.
+		// So correct by the difference, then record the true origin so the
+		// next frame starts from it.
+		int x = client.getViewportXOffset() + client.getViewportWidth() / 2 - stripWidth / 2;
+		int y = client.getViewportYOffset() + CENTRED_TOP_MARGIN;
+		Rectangle bounds = getBounds();
+		int dx = x - bounds.x;
+		int dy = y - bounds.y;
+		graphics.translate(dx, dy);
 		drawStrip(graphics, stripWidth);
-		return new Dimension(stripWidth, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1);
+		graphics.translate(-dx, -dy);
+		bounds.setLocation(x, y);
+		return new Dimension(stripWidth, height);
 	}
 
 	private void drawStrip(Graphics2D graphics, int stripWidth)
@@ -232,7 +267,10 @@ class WayfarerOverlay extends Overlay
 			return;
 		}
 		boolean bySize = config.distanceAsSize();
-		Frame frame = new Frame(heading, me, config.nearbyRange() * LOCAL_TILE_SIZE, centerX, halfWidth,
+		double rangeTiles = config.rangeFollowsZoom()
+			? CompassMath.zoomedRange(config.nearbyRange(), zoomIn(), ZOOM_MIN_RANGE_FRACTION)
+			: config.nearbyRange();
+		Frame frame = new Frame(heading, me, (int) Math.round(rangeTiles * LOCAL_TILE_SIZE), centerX, halfWidth,
 			MARKER_RAIL_Y, config.distanceAsHeight() ? MARKER_FAR_Y : MARKER_RAIL_Y,
 			bySize ? MARKER_NEAR_SIZE : MARKER_DOT_SIZE, bySize ? MARKER_FAR_SIZE : MARKER_DOT_SIZE);
 
@@ -305,6 +343,29 @@ class WayfarerOverlay extends Overlay
 		}
 		threats.clear();
 		shownBearings.values().removeIf(s -> s.frame != frameNumber);
+	}
+
+	/**
+	 * How far the camera is zoomed in: 0 all the way out, 1 all the way in.
+	 * Reads the same client values RuneLite's Camera plugin adjusts, and
+	 * the live limits rather than fixed numbers, so an extended zoom range
+	 * still maps to 0..1. A higher zoom value is further in (the Camera
+	 * plugin widens the outer limit by lowering MIN).
+	 * ponytail: BIG is taken to be the resizable-mode value and SMALL the
+	 * fixed-mode one from their names; if zoom does nothing in one mode,
+	 * swap them.
+	 */
+	private double zoomIn()
+	{
+		boolean resized = client.isResized();
+		int zoom = client.getVarcIntValue(resized ? VarClientID.CAMERA_ZOOM_BIG : VarClientID.CAMERA_ZOOM_SMALL);
+		int min = client.getVarcIntValue(resized ? VarClientID.CAMERA_ZOOM_BIG_MIN : VarClientID.CAMERA_ZOOM_SMALL_MIN);
+		int max = client.getVarcIntValue(resized ? VarClientID.CAMERA_ZOOM_BIG_MAX : VarClientID.CAMERA_ZOOM_SMALL_MAX);
+		if (max <= min)
+		{
+			return 0;
+		}
+		return (zoom - min) / (double) (max - min);
 	}
 
 	/** Eased bearing for this marker; a marker new this frame starts at its true bearing. */

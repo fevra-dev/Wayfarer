@@ -27,6 +27,9 @@ things that already appear on your minimap are marked.
 Under **Strip**:
 
 - **Shape**: rounded *Pill* ends or *Square* corners.
+- **Centre on game view**: pins the strip to the exact top centre of the game view. RuneLite's own
+  top-centre spot centres on the area left of the minimap and inventory, so it sits a little left of
+  true centre. While this is on, the strip can't be dragged.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
 
@@ -40,6 +43,8 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
   the strip and distant ones near the top. Off by default.
 - **Distance as size**: shrinks dots the further away they are, so close things draw large and distant
   ones small. Off by default, and works together with distance as height.
+- **Range follows zoom**: zoomed all the way out, dots reach your full Range; zooming in narrows them
+  to roughly the nearest third, the way the minimap shows less as it zooms in. Off by default.
 
 Turn them all off for a plain compass. The **Reset** button at the bottom of the settings panel
 puts everything back to the defaults.

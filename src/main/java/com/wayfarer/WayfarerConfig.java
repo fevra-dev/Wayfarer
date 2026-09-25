@@ -32,6 +32,18 @@ public interface WayfarerConfig extends Config
 		return StripShape.PILL;
 	}
 
+	@ConfigItem(
+		keyName = "centreOnGameView",
+		name = "Centre on game view",
+		description = "Pin the strip to the exact top centre of the game view. RuneLite's own top-centre snap centres on the area left of the minimap and inventory, which sits left of true centre. While on, the strip can't be dragged",
+		position = 1,
+		section = stripSection
+	)
+	default boolean centreOnGameView()
+	{
+		return false;
+	}
+
 	@ConfigSection(
 		name = "Markers",
 		description = "Dots on the strip showing which way nearby players, NPCs and ground items are. Only what the minimap already shows is marked",
@@ -172,6 +184,18 @@ public interface WayfarerConfig extends Config
 		section = markersSection
 	)
 	default boolean distanceAsSize()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "rangeFollowsZoom",
+		name = "Range follows zoom",
+		description = "Zoomed all the way out, markers reach your full Range; zooming in narrows them to the nearer third or so, the way the minimap shows less as it zooms in",
+		position = 12,
+		section = markersSection
+	)
+	default boolean rangeFollowsZoom()
 	{
 		return false;
 	}

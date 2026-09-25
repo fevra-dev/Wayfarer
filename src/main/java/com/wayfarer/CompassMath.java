@@ -104,6 +104,17 @@ final class CompassMath
 	}
 
 	/**
+	 * Marker range under "range follows zoom": the full range when zoomed
+	 * all the way out (zoomIn 0), shrinking linearly to minFraction of it
+	 * when zoomed all the way in (zoomIn 1). Never below one tile.
+	 */
+	static double zoomedRange(double rangeTiles, double zoomIn, double minFraction)
+	{
+		double z = Math.max(0.0, Math.min(1.0, zoomIn));
+		return Math.max(1.0, rangeTiles * (1.0 - (1.0 - minFraction) * z));
+	}
+
+	/**
 	 * Near-field fade for markers. Bearing to a moving actor changes at
 	 * speed / distance, so something passing within a tile or two swings
 	 * across the whole strip in a fraction of a second — the most

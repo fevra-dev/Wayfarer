@@ -8,6 +8,7 @@ import static com.wayfarer.CompassMath.nearFade;
 import static com.wayfarer.CompassMath.screenOffsetFraction;
 import static com.wayfarer.CompassMath.signedDeltaDegrees;
 import static com.wayfarer.CompassMath.smoothBearing;
+import static com.wayfarer.CompassMath.zoomedRange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
@@ -109,6 +110,17 @@ public class CompassMathTest
 			b = smoothBearing(b, 10, 0.016, 0.2, 120);
 		}
 		assertEquals(10.0, b, 0.01);
+	}
+
+	@Test
+	public void zoomedRangeNarrowsAsYouZoomIn()
+	{
+		assertEquals(25.0, zoomedRange(25, 0.0, 0.35), EPS);
+		assertEquals(8.75, zoomedRange(25, 1.0, 0.35), EPS);
+		assertEquals(16.875, zoomedRange(25, 0.5, 0.35), EPS);
+		// Clamped zoom, and never below one tile.
+		assertEquals(25.0, zoomedRange(25, -0.3, 0.35), EPS);
+		assertEquals(1.0, zoomedRange(2, 1.0, 0.35), EPS);
 	}
 
 	@Test
