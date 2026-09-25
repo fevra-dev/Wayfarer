@@ -18,7 +18,9 @@ around you and which way it is.
 
 Closer things draw brighter, except within the last few tiles, where dots fade back down: something
 running right past you swings across the whole strip in a blink, and you can already see it on
-screen. Only things that already appear on your minimap are marked.
+screen. Dots also glide rather than jump: each eases toward its true direction and never moves faster
+than one strip width a second, while turning your camera still moves everything instantly. Only
+things that already appear on your minimap are marked.
 
 ## Options
 

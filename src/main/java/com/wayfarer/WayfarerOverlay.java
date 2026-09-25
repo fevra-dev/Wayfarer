@@ -6,7 +6,9 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.NPC;
@@ -65,13 +67,35 @@ class WayfarerOverlay extends Overlay
 	/** Markers closer than this many tiles fade toward NEAR_FADE_FLOOR. */
 	private static final double NEAR_FADE_TILES = 4.0;
 	private static final double NEAR_FADE_FLOOR = 0.2;
+	/** Marker easing (see CompassMath.smoothBearing): time constant, and top speed of one strip width a second. */
+	private static final double MARKER_EASE_SECONDS = 0.2;
+	private static final double MARKER_MAX_DEG_PER_SEC = 120.0;
+	/** After a stall (alt-tab, loading), ease as if one short frame passed rather than jumping. */
+	private static final double MAX_FRAME_SECONDS = 0.1;
 
 	private final Client client;
 	private final WayfarerConfig config;
 	private final GroundItemTiles groundItems;
 
 	/** Reused per frame so attackable NPCs can be drawn last without a second NPC pass. */
-	private final List<LocalPoint> threats = new ArrayList<>();
+	private final List<NPC> threats = new ArrayList<>();
+
+	/**
+	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
+	 * or item tile). Entries not drawn this frame are dropped, so a marker
+	 * that leaves and returns starts at its true bearing rather than
+	 * swooping in from where it was last seen.
+	 */
+	private final Map<Object, ShownBearing> shownBearings = new HashMap<>();
+	private long frameNumber;
+	private long lastFrameNanos;
+	private double frameSeconds;
+
+	private static final class ShownBearing
+	{
+		double bearing;
+		long frame;
+	}
 
 	@Inject
 	private WayfarerOverlay(Client client, WayfarerConfig config, GroundItemTiles groundItems)
@@ -212,6 +236,11 @@ class WayfarerOverlay extends Overlay
 			MARKER_RAIL_Y, config.distanceAsHeight() ? MARKER_FAR_Y : MARKER_RAIL_Y,
 			bySize ? MARKER_NEAR_SIZE : MARKER_DOT_SIZE, bySize ? MARKER_FAR_SIZE : MARKER_DOT_SIZE);
 
+		long now = System.nanoTime();
+		frameSeconds = lastFrameNanos == 0 ? 0 : Math.min(MAX_FRAME_SECONDS, (now - lastFrameNanos) / 1e9);
+		lastFrameNanos = now;
+		frameNumber++;
+
 		// ponytail: top-level world view only, so players, NPCs and items
 		// aboard other boats are not marked; iterate client.getWorldViews()
 		// and transform each through its WorldEntity if that gets asked for.
@@ -226,7 +255,7 @@ class WayfarerOverlay extends Overlay
 				// The minimap only shows items on your own floor.
 				if (tile.getPlane() == plane)
 				{
-					drawMarker(graphics, frame, tile.getLocalLocation(), itemColor);
+					drawMarker(graphics, frame, tile, tile.getLocalLocation(), itemColor);
 				}
 			}
 		}
@@ -250,12 +279,12 @@ class WayfarerOverlay extends Overlay
 			{
 				if (showMonsters)
 				{
-					threats.add(npc.getLocalLocation());
+					threats.add(npc);
 				}
 			}
 			else if (showNpcs)
 			{
-				drawMarker(graphics, frame, npc.getLocalLocation(), npcColor);
+				drawMarker(graphics, frame, npc, npc.getLocalLocation(), npcColor);
 			}
 		}
 		if (config.showPlayers())
@@ -265,16 +294,35 @@ class WayfarerOverlay extends Overlay
 			{
 				if (player != null && player != local)
 				{
-					drawMarker(graphics, frame, player.getLocalLocation(), playerColor);
+					drawMarker(graphics, frame, player, player.getLocalLocation(), playerColor);
 				}
 			}
 		}
 		Color monsterColor = config.monsterColor();
-		for (LocalPoint threat : threats)
+		for (NPC threat : threats)
 		{
-			drawMarker(graphics, frame, threat, monsterColor);
+			drawMarker(graphics, frame, threat, threat.getLocalLocation(), monsterColor);
 		}
 		threats.clear();
+		shownBearings.values().removeIf(s -> s.frame != frameNumber);
+	}
+
+	/** Eased bearing for this marker; a marker new this frame starts at its true bearing. */
+	private double shownBearing(Object key, double trueBearing)
+	{
+		ShownBearing s = shownBearings.get(key);
+		if (s == null)
+		{
+			s = new ShownBearing();
+			s.bearing = trueBearing;
+			shownBearings.put(key, s);
+		}
+		else
+		{
+			s.bearing = CompassMath.smoothBearing(s.bearing, trueBearing, frameSeconds, MARKER_EASE_SECONDS, MARKER_MAX_DEG_PER_SEC);
+		}
+		s.frame = frameNumber;
+		return s.bearing;
 	}
 
 	/**
@@ -295,7 +343,7 @@ class WayfarerOverlay extends Overlay
 		return boat == null ? null : boat.transformToMainWorld(lp);
 	}
 
-	private void drawMarker(Graphics2D graphics, Frame frame, LocalPoint them, Color color)
+	private void drawMarker(Graphics2D graphics, Frame frame, Object key, LocalPoint them, Color color)
 	{
 		if (them == null)
 		{
@@ -314,7 +362,7 @@ class WayfarerOverlay extends Overlay
 		}
 
 		double fraction = CompassMath.screenOffsetFraction(
-			CompassMath.signedDeltaDegrees(CompassMath.bearingToTarget(dxEast, dyNorth), frame.heading), HALF_SPAN_DEG);
+			CompassMath.signedDeltaDegrees(shownBearing(key, CompassMath.bearingToTarget(dxEast, dyNorth)), frame.heading), HALF_SPAN_DEG);
 		if (Math.abs(fraction) > 1.0)
 		{
 			return;

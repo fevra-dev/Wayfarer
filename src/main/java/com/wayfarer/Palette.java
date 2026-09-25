@@ -38,9 +38,11 @@ final class Palette
 	/**
 	 * Marker for ground items. Red because the minimap already draws items
 	 * as red dots: color as function means matching the meaning players
-	 * already know.
+	 * already know. Deliberately dark (CIE L* ~42): at 4px, colours are told
+	 * apart by lightness more than hue, so the warm markers step down in
+	 * lightness — white 96, yellow 75, orange 61, red 42.
 	 */
-	static final Color SIGNAL_RED = new Color(0xD6, 0x45, 0x45);
+	static final Color SIGNAL_RED = new Color(0xB8, 0x30, 0x2A);
 
 	/**
 	 * Marker for other players. Braun snow white — deliberately brighter
