@@ -18,7 +18,7 @@ around you and which way it is.
 
 Closer things draw brighter, except within the last few tiles, where dots fade back down: something
 running right past you swings across the whole strip in a blink, and you can already see it on
-screen. Dots also glide rather than jump: each eases toward its true direction and never moves faster
+screen. A crowd standing on one spot shows as a single dot rather than a growing blob. Dots also glide rather than jump: each eases toward its true direction and never moves faster
 than half a strip width a second, while turning your camera still moves everything instantly. When
 someone runs straight through you, their dot fades back in on the other side instead of sliding the
 long way round. Only
@@ -29,10 +29,11 @@ things that already appear on your minimap are marked.
 Under **Strip**:
 
 - **Shape**: rounded *Pill* ends, *Square* corners, or *Pointed* tips.
+- **Length**: shortest to longest, *Dagger*, *Scimitar*, *Longsword* (the default) or *Godsword*.
 - **Centre on game view**: pins the strip to the exact top centre of the game view. RuneLite's own
   top-centre spot centres on the area left of the minimap and inventory, so it sits a little left of
   true centre. On by default; turn it off to drag the strip anywhere or snap it to a corner.
-- **Background opacity**: how solid the strip is, from 0 to 100%. The default, 65%, is the lightest
+- **Background opacity**: how solid the strip is, from 0 to 100%. The default, 55%, is the lightest
   setting at which the letters stay clearly readable over bright scenery like fog, sand and pale stone.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
@@ -42,7 +43,7 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Other NPCs**: everything else, such as bankers and shopkeepers (yellow).
 - **Ground items**: tiles with items on them, such as drops (red).
 - **Colours**: each kind of dot has its own colour picker, including transparency.
-- **Range**: how far away (4 to 50 tiles) something can be and still get a dot. The default is 25.
+- **Range**: how far away (4 to 50 tiles) something can be and still get a dot. The default is 20.
 - **Distance as height**: raises dots the further away they are, so close things sit at the bottom of
   their lane and distant ones near the top of it. On by default. Dots have their own lane under the
   direction letters, so they never cover them.
@@ -51,6 +52,8 @@ Under **Markers**, each kind of dot has its own switch, so you can show exactly 
 - **Range follows zoom**: zoomed all the way out, dots reach your full Range; zooming in narrows them
   to roughly the nearest third (never under 4 tiles), the way the minimap shows less as it zooms in.
   Off by default.
+- **Shrink when zoomed out**: like looking down from higher up, the further out you zoom your camera, the
+  smaller every dot draws. Off by default.
 
 Turn them all off for a plain compass. The **Reset** button at the bottom of the settings panel
 puts everything back to the defaults.

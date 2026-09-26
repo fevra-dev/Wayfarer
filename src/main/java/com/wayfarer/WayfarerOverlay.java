@@ -9,7 +9,9 @@ import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
@@ -55,8 +57,6 @@ class WayfarerOverlay extends Overlay
 	private static final int LABEL_BAND_MID = 9;
 	private static final int CARET_GAP = 2;
 	private static final int CARET_LENGTH = 6;
-	private static final int MIN_WIDTH = 240;
-	private static final int MAX_WIDTH = 480;
 	/** Gap above the centred strip; RuneLite's snap corners inset by the same 5px. */
 	private static final int CENTRED_TOP_MARGIN = 5;
 	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
@@ -69,6 +69,11 @@ class WayfarerOverlay extends Overlay
 
 	private static final int LOCAL_TILE_SIZE = 128;
 	private static final int MARKER_DOT_SIZE = 4;
+	private static final int MARKER_MIN_SIZE = 2;
+	/** Same-colour markers landing within this many pixels share one dot. */
+	private static final int DEDUPE_PX = 3;
+	/** Shrink when zoomed out: size multiplier at the furthest zoom. */
+	private static final double SHRINK_ZOOMED_OUT = 0.6;
 	/** Distance as size: dot diameter beside you, and at the range cap. */
 	private static final int MARKER_NEAR_SIZE = 5;
 	private static final int MARKER_FAR_SIZE = 2;
@@ -101,6 +106,17 @@ class WayfarerOverlay extends Overlay
 	private final List<NPC> threats = new ArrayList<>();
 	/** Reused per frame: the main world view plus one per boat. */
 	private final List<WorldView> views = new ArrayList<>();
+	/**
+	 * Marker cells already drawn this frame, keyed by position (in
+	 * DEDUPE_PX cells) and colour. A crowd on one spot draws one dot, not a
+	 * stack of translucent dots that sums into an oversized blob.
+	 * ponytail: first drawn wins, which with height off can let a dim far
+	 * dot hide a bright near one on the same pixel; keep the brightest per
+	 * cell if that shows up.
+	 */
+	private final Set<Long> occupied = new HashSet<>();
+	/** Shrink when zoomed out: marker size multiplier for this frame. */
+	private double sizeScale = 1.0;
 
 	/**
 	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
@@ -141,7 +157,7 @@ class WayfarerOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		int stripWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, (int) (client.getViewportWidth() * 0.40)));
+		int stripWidth = config.length().width(client.getViewportWidth());
 		int height = STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1;
 		if (getPosition() != OverlayPosition.DYNAMIC)
 		{
@@ -207,9 +223,10 @@ class WayfarerOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-		// Default 65% is the lowest opacity at which PAPER labels clear 4.5:1
-		// over bright stone, sand, fog and dark ground alike (contrast-sweep,
-		// 2026-09-25: 4.57:1 worst case at 65%; 31% fell to ~1.6:1).
+		// Default 55% is the lowest opacity at which the SNOW_WHITE labels
+		// clear 4.5:1 over bright stone, sand, fog and dark ground alike
+		// (contrast-sweep, 2026-09-25: 4.67:1 worst case at 55%; 31% fell
+		// to ~1.6:1). Lower is the player's call, and the setting says so.
 		graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, config.backgroundOpacity() * 255 / 100));
 		fillStripShape(graphics, config.shape(), stripWidth);
 
@@ -263,7 +280,7 @@ class WayfarerOverlay extends Overlay
 			int y = LABEL_BAND_MID + fm.getAscent() / 2 - 1;
 			graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, (int) (strength * alpha)));
 			graphics.drawString(label, x + 1, y + 1);
-			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (strength * alpha)));
+			graphics.setColor(Palette.withAlpha(Palette.SNOW_WHITE, (int) (strength * alpha)));
 			graphics.drawString(label, x, y);
 		}
 
@@ -347,6 +364,8 @@ class WayfarerOverlay extends Overlay
 		frameSeconds = lastFrameNanos == 0 ? 0 : Math.min(MAX_FRAME_SECONDS, (now - lastFrameNanos) / 1e9);
 		lastFrameNanos = now;
 		frameNumber++;
+		occupied.clear();
+		sizeScale = config.shrinkWhenZoomedOut() ? SHRINK_ZOOMED_OUT + (1.0 - SHRINK_ZOOMED_OUT) * zoomIn() : 1.0;
 		clockSeconds += frameSeconds;
 
 		// Actors live in the main world view or aboard a boat (Sailing), each
@@ -542,7 +561,12 @@ class WayfarerOverlay extends Overlay
 
 		int x = frame.centerX + (int) Math.round(fraction * frame.halfWidth);
 		int y = CompassMath.byDistance(distFraction, frame.nearY, frame.farY);
-		int size = CompassMath.byDistance(distFraction, frame.nearSize, frame.farSize);
+		int size = Math.max(MARKER_MIN_SIZE, (int) Math.round(CompassMath.byDistance(distFraction, frame.nearSize, frame.farSize) * sizeScale));
+		long cell = ((long) (x / DEDUPE_PX) << 40) | ((long) (y / DEDUPE_PX) << 24) | (color.getRGB() & 0xFFFFFFL);
+		if (!occupied.add(cell))
+		{
+			return;
+		}
 		graphics.setColor(Palette.withAlpha(color, alpha));
 		graphics.fillOval(x - size / 2, y - size / 2, size, size);
 	}

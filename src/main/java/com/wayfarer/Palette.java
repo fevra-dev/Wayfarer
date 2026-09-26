@@ -10,8 +10,10 @@ import java.awt.Color;
  * Rules this file enforces by construction:
  * - One accent: AMBER, and it means exactly one thing — "where you are
  *   pointing" (the compass caret). Nothing else may be amber.
- * - Marks and text are aged paper, never pure white: pure #FFFFFF reads
- *   as UI chrome laid over the scene; paper reads as part of the world.
+ * - Ticks are aged paper, never pure white: pure #FFFFFF reads as UI
+ *   chrome laid over the scene; paper reads as part of the world. Labels
+ *   use SNOW_WHITE (still not pure white), which keeps 4.5:1 over bright
+ *   scenery down to a 55% strip where PAPER needs 65% (contrast-sweep).
  * - Surfaces are warm black, never pure black or cool gray.
  * - Marker colors are classification, nothing else. They are the defaults;
  *   players can recolor markers in the config panel.

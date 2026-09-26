@@ -34,10 +34,22 @@ public interface WayfarerConfig extends Config
 	}
 
 	@ConfigItem(
+		keyName = "length",
+		name = "Length",
+		description = "How long the strip is, shortest to longest: Dagger, Scimitar, Longsword, Godsword",
+		position = 1,
+		section = stripSection
+	)
+	default StripLength length()
+	{
+		return StripLength.LONGSWORD;
+	}
+
+	@ConfigItem(
 		keyName = "centreOnGameView",
 		name = "Centre on game view",
 		description = "Pin the strip to the exact top centre of the game view. RuneLite's own top-centre snap centres on the area left of the minimap and inventory, which sits left of true centre. While on, the strip can't be dragged",
-		position = 1,
+		position = 2,
 		section = stripSection
 	)
 	default boolean centreOnGameView()
@@ -50,13 +62,13 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "backgroundOpacity",
 		name = "Background opacity",
-		description = "How solid the strip behind the letters is. Below 65% the letters lose contrast over bright scenery such as fog, sand and pale stone",
-		position = 2,
+		description = "How solid the strip behind the letters is. Below 55% the letters lose contrast over bright scenery such as fog, sand and pale stone",
+		position = 3,
 		section = stripSection
 	)
 	default int backgroundOpacity()
 	{
-		return 65;
+		return 55;
 	}
 
 	@ConfigSection(
@@ -176,7 +188,7 @@ public interface WayfarerConfig extends Config
 	)
 	default int nearbyRange()
 	{
-		return 25;
+		return 20;
 	}
 
 	@ConfigItem(
@@ -211,6 +223,18 @@ public interface WayfarerConfig extends Config
 		section = markersSection
 	)
 	default boolean rangeFollowsZoom()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "shrinkWhenZoomedOut",
+		name = "Shrink when zoomed out",
+		description = "Like looking down from higher up: the further out your camera is zoomed, the smaller every marker draws",
+		position = 13,
+		section = markersSection
+	)
+	default boolean shrinkWhenZoomedOut()
 	{
 		return false;
 	}
