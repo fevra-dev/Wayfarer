@@ -72,7 +72,8 @@ find the nearest bank or altar at a glance. Each group has its own switch under 
 | Altars | Slayer masters, Quests, Dungeons |
 | Shops | Services (tutors, estate agent, makeovers) |
 
-Icons reach your full Range and sit under the dots.
+Icons reach your full Range and sit in their own row along the bottom of the strip, so dots never cover
+them. The strip only grows to make room while at least one icon group is switched on.
 
 ## What it doesn't do
 

@@ -76,7 +76,12 @@ class WayfarerOverlay extends Overlay
 	private static final int MARKER_MIN_SIZE = 2;
 	/** Map icon height in the marker lane (minimap sprites are ~15px). */
 	private static final int ICON_SIZE = 11;
-	private static final int ICON_TOP_Y = STRIP_HEIGHT - ICON_SIZE - 2;
+	/**
+	 * Map icons get their own lane below the markers, so dots never sit on
+	 * top of them. The strip only grows by it while an icon group is on.
+	 */
+	private static final int ICON_LANE = 14;
+	private static final int ICON_TOP_Y = STRIP_HEIGHT + 1;
 	/** Same icon within this many pixels draws once. */
 	private static final int ICON_DEDUPE_PX = 8;
 	/** Same-colour markers landing within this many pixels share one dot. */
@@ -129,6 +134,8 @@ class WayfarerOverlay extends Overlay
 	private final Set<Long> occupied = new HashSet<>();
 	/** Shrink when zoomed out: marker size multiplier for this frame. */
 	private double sizeScale = 1.0;
+	/** This frame's strip height: the two base lanes, plus the icon lane when in use. */
+	private int stripHeight = STRIP_HEIGHT;
 
 	/**
 	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
@@ -171,7 +178,8 @@ class WayfarerOverlay extends Overlay
 	public Dimension render(Graphics2D graphics)
 	{
 		int stripWidth = config.length().width(client.getViewportWidth());
-		int height = STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1;
+		stripHeight = STRIP_HEIGHT + (anyIconGroupShown() ? ICON_LANE : 0);
+		int height = stripHeight + CARET_GAP + CARET_LENGTH + 1;
 		if (getPosition() != OverlayPosition.DYNAMIC)
 		{
 			drawStrip(graphics, stripWidth);
@@ -210,9 +218,9 @@ class WayfarerOverlay extends Overlay
 		return centerX + (int) Math.round(fraction * halfWidth);
 	}
 
-	private static void fillStripShape(Graphics2D graphics, StripShape shape, int width)
+	private static void fillStripShape(Graphics2D graphics, StripShape shape, int width, int height)
 	{
-		int h = STRIP_HEIGHT;
+		int h = height;
 		switch (shape)
 		{
 			case PILL:
@@ -241,7 +249,7 @@ class WayfarerOverlay extends Overlay
 		// (contrast-sweep, 2026-09-26: 4.52:1 worst case at 54%, 4.24 at 52%; 31% fell
 		// to ~1.6:1). Lower is the player's call, and the setting says so.
 		graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, config.backgroundOpacity() * 255 / 100));
-		fillStripShape(graphics, config.shape(), stripWidth);
+		fillStripShape(graphics, config.shape(), stripWidth, stripHeight);
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
@@ -299,7 +307,7 @@ class WayfarerOverlay extends Overlay
 		// current heading. Amber — the single accent, reserved for "where
 		// you are pointing" (see Palette).
 		graphics.setColor(CARET);
-		graphics.drawLine(centerX, STRIP_HEIGHT + CARET_GAP, centerX, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH);
+		graphics.drawLine(centerX, stripHeight + CARET_GAP, centerX, stripHeight + CARET_GAP + CARET_LENGTH);
 	}
 
 	/**
@@ -514,6 +522,18 @@ class WayfarerOverlay extends Overlay
 		}
 		s.frame = frameNumber;
 		return s;
+	}
+
+	private boolean anyIconGroupShown()
+	{
+		for (IconGroup group : IconGroup.values())
+		{
+			if (showGroup(group))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean showGroup(IconGroup group)
