@@ -283,7 +283,10 @@ class WayfarerOverlay extends Overlay
 	{
 		final double heading;
 		final LocalPoint me;
+		/** Cutoff: markers beyond this are not drawn (narrows with zoom). */
 		final int rangeLocal;
+		/** Scale for height, size and fade: always the full Range, so zoom never resizes a marker. */
+		final int scaleLocal;
 		final int centerX;
 		final int halfWidth;
 		final int nearY;
@@ -291,12 +294,13 @@ class WayfarerOverlay extends Overlay
 		final int nearSize;
 		final int farSize;
 
-		Frame(double heading, LocalPoint me, int rangeLocal, int centerX, int halfWidth,
+		Frame(double heading, LocalPoint me, int rangeLocal, int scaleLocal, int centerX, int halfWidth,
 			int nearY, int farY, int nearSize, int farSize)
 		{
 			this.heading = heading;
 			this.me = me;
 			this.rangeLocal = rangeLocal;
+			this.scaleLocal = scaleLocal;
 			this.centerX = centerX;
 			this.halfWidth = halfWidth;
 			this.nearY = nearY;
@@ -331,7 +335,11 @@ class WayfarerOverlay extends Overlay
 		double rangeTiles = config.rangeFollowsZoom()
 			? CompassMath.zoomedRange(config.nearbyRange(), zoomIn(), ZOOM_MIN_RANGE_FRACTION, ZOOM_RANGE_FLOOR_TILES)
 			: config.nearbyRange();
-		Frame frame = new Frame(heading, me, (int) Math.round(rangeTiles * LOCAL_TILE_SIZE), centerX, halfWidth,
+		// Zoom narrows only the cutoff. Height, size and fade scale against the
+		// full Range, so a player standing still keeps the same marker however
+		// you zoom -- zooming out used to make existing markers grow.
+		Frame frame = new Frame(heading, me, (int) Math.round(rangeTiles * LOCAL_TILE_SIZE),
+			config.nearbyRange() * LOCAL_TILE_SIZE, centerX, halfWidth,
 			MARKER_RAIL_Y, config.distanceAsHeight() ? MARKER_FAR_Y : MARKER_RAIL_Y,
 			bySize ? MARKER_NEAR_SIZE : MARKER_DOT_SIZE, bySize ? MARKER_FAR_SIZE : MARKER_DOT_SIZE);
 
@@ -527,7 +535,7 @@ class WayfarerOverlay extends Overlay
 		// except the last few tiles, which go quiet (see nearFade). Times the
 		// strip's own edge fade and the user's chosen transparency.
 		double dist = Math.sqrt((double) distSq);
-		double distFraction = dist / frame.rangeLocal;
+		double distFraction = dist / frame.scaleLocal;
 		double near = CompassMath.nearFade(dist / LOCAL_TILE_SIZE, NEAR_FADE_TILES, NEAR_FADE_FLOOR);
 		double appear = CompassMath.appearFade(clockSeconds - shown.born, MARKER_FADE_IN_SECONDS);
 		int alpha = (int) (edge * near * appear * (230 - 110 * distFraction) * color.getAlpha() / 255.0);
