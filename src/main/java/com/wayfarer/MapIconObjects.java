@@ -1,5 +1,6 @@
 package com.wayfarer;
 
+import java.awt.image.BufferedImage;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,9 +10,13 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.GameObject;
 import net.runelite.api.ObjectComposition;
+import net.runelite.api.SpritePixels;
+import net.runelite.api.Tile;
 import net.runelite.api.TileObject;
 import net.runelite.api.WorldView;
+import net.runelite.api.worldmap.MapElementConfig;
 
 /**
  * Scenery in the top-level world that carries a minimap icon (banks,
@@ -34,6 +39,9 @@ class MapIconObjects
 	private final Map<TileObject, Integer> icons = new HashMap<>();
 	/** Icon ids already logged, so discovery prints each one once. */
 	private final Set<Integer> logged = new HashSet<>();
+	/** Per icon id, looked up once: its world-map category and its sprite. */
+	private final Map<Integer, Integer> categories = new HashMap<>();
+	private final Map<Integer, BufferedImage> sprites = new HashMap<>();
 
 	private final Client client;
 
@@ -68,7 +76,7 @@ class MapIconObjects
 		if (logged.add(iconId))
 		{
 			log.debug("Wayfarer map icon: icon={} category={} object={} '{}' at {}",
-				iconId, client.getMapElementConfig(iconId).getCategory(), object.getId(), def.getName(),
+				iconId, category(iconId), object.getId(), def.getName(),
 				object.getWorldLocation());
 		}
 	}
@@ -76,6 +84,48 @@ class MapIconObjects
 	void despawned(TileObject object)
 	{
 		icons.remove(object);
+	}
+
+	/**
+	 * Spawn events already fired for scenery present before the plugin
+	 * started, so read the scene once. A single pass at startup, not per
+	 * frame (same as GroundItemTiles.seed).
+	 */
+	void seed(WorldView worldView)
+	{
+		icons.clear();
+		for (Tile[][] plane : worldView.getScene().getTiles())
+		{
+			for (Tile[] row : plane)
+			{
+				for (Tile tile : row)
+				{
+					if (tile == null)
+					{
+						continue;
+					}
+					GameObject[] objects = tile.getGameObjects();
+					if (objects != null)
+					{
+						for (GameObject object : objects)
+						{
+							spawnedIfPresent(object);
+						}
+					}
+					spawnedIfPresent(tile.getWallObject());
+					spawnedIfPresent(tile.getDecorativeObject());
+					spawnedIfPresent(tile.getGroundObject());
+				}
+			}
+		}
+	}
+
+	private void spawnedIfPresent(TileObject object)
+	{
+		if (object != null)
+		{
+			spawned(object);
+		}
 	}
 
 	/** The scene reloaded; every object we hold belongs to the old one. */
@@ -90,6 +140,28 @@ class MapIconObjects
 	void clear()
 	{
 		icons.clear();
+	}
+
+	/** World-map category of an icon id (see IconGroup), cached. */
+	int category(int iconId)
+	{
+		return categories.computeIfAbsent(iconId, id ->
+		{
+			MapElementConfig config = client.getMapElementConfig(id);
+			return config == null ? -1 : config.getCategory();
+		});
+	}
+
+	/** The icon's own minimap sprite, cached; null if the game has none. */
+	BufferedImage sprite(int iconId)
+	{
+		if (!sprites.containsKey(iconId))
+		{
+			MapElementConfig config = client.getMapElementConfig(iconId);
+			SpritePixels pixels = config == null ? null : config.getMapIcon(false);
+			sprites.put(iconId, pixels == null ? null : pixels.toBufferedImage());
+		}
+		return sprites.get(iconId);
 	}
 
 	Map<TileObject, Integer> icons()

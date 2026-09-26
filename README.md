@@ -33,7 +33,7 @@ Under **Strip**:
 - **Centre on game view**: pins the strip to the exact top centre of the game view. RuneLite's own
   top-centre spot centres on the area left of the minimap and inventory, so it sits a little left of
   true centre. On by default; turn it off to drag the strip anywhere or snap it to a corner.
-- **Background opacity**: how solid the strip is, from 0 to 100%. The default, 55%, is the lightest
+- **Background opacity**: how solid the strip is, from 0 to 100%. The default, 54%, is the lightest
   setting at which the letters stay clearly readable over bright scenery like fog, sand and pale stone.
 
 Under **Markers**, each kind of dot has its own switch, so you can show exactly what you want:
@@ -60,6 +60,19 @@ puts everything back to the defaults.
 
 To move the strip, turn off **Centre on game view**, then hold Alt (Option on a Mac) and drag, the way
 RuneLite moves any overlay; Alt+right-click puts it back.
+
+### Map icons
+
+The strip can also show the same icons your minimap draws, in the direction of each one, so you can
+find the nearest bank or altar at a glance. Each group has its own switch under **Map icons**:
+
+| On by default | Off by default |
+|---|---|
+| Banks (and the Grand Exchange) | Rare trees, Transport, Skilling, Minigames |
+| Altars | Slayer masters, Quests, Dungeons |
+| Shops | Services (tutors, estate agent, makeovers) |
+
+Icons reach your full Range and sit under the dots.
 
 ## What it doesn't do
 

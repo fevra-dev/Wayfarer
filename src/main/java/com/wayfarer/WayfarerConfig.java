@@ -62,13 +62,13 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "backgroundOpacity",
 		name = "Background opacity",
-		description = "How solid the strip behind the letters is. Below 55% the letters lose contrast over bright scenery such as fog, sand and pale stone",
+		description = "How solid the strip behind the letters is. Below 54% the letters lose contrast over bright scenery such as fog, sand and pale stone",
 		position = 3,
 		section = stripSection
 	)
 	default int backgroundOpacity()
 	{
-		return 55;
+		return 54;
 	}
 
 	@ConfigSection(
@@ -235,6 +235,145 @@ public interface WayfarerConfig extends Config
 		section = markersSection
 	)
 	default boolean shrinkWhenZoomedOut()
+	{
+		return false;
+	}
+
+	@ConfigSection(
+		name = "Map icons",
+		description = "Minimap icons shown on the strip in their direction: the same icons your minimap draws",
+		position = 2
+	)
+	String mapIconsSection = "mapIcons";
+
+	@ConfigItem(
+		keyName = "showBanks",
+		name = "Banks",
+		description = "Banks and the Grand Exchange",
+		position = 0,
+		section = mapIconsSection
+	)
+	default boolean showBanks()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showAltars",
+		name = "Altars",
+		description = "Prayer altars",
+		position = 1,
+		section = mapIconsSection
+	)
+	default boolean showAltars()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showShops",
+		name = "Shops",
+		description = "General stores, specialist shops and traders",
+		position = 2,
+		section = mapIconsSection
+	)
+	default boolean showShops()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = "showRareTrees",
+		name = "Rare trees",
+		description = "Yews, magic trees and other rare trees",
+		position = 3,
+		section = mapIconsSection
+	)
+	default boolean showRareTrees()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showTransport",
+		name = "Transport",
+		description = "Transportation, house portals, agility shortcuts and docking points",
+		position = 4,
+		section = mapIconsSection
+	)
+	default boolean showTransport()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showSkilling",
+		name = "Skilling",
+		description = "Anvils, furnaces, ranges, fishing spots, mining sites, farming patches and other skilling spots",
+		position = 5,
+		section = mapIconsSection
+	)
+	default boolean showSkilling()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showMinigames",
+		name = "Minigames",
+		description = "Minigames, raids and activities",
+		position = 6,
+		section = mapIconsSection
+	)
+	default boolean showMinigames()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showSlayer",
+		name = "Slayer masters",
+		description = "Slayer masters",
+		position = 7,
+		section = mapIconsSection
+	)
+	default boolean showSlayer()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showQuests",
+		name = "Quests",
+		description = "Quest start points",
+		position = 8,
+		section = mapIconsSection
+	)
+	default boolean showQuests()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showDungeons",
+		name = "Dungeons",
+		description = "Dungeon entrances",
+		position = 9,
+		section = mapIconsSection
+	)
+	default boolean showDungeons()
+	{
+		return false;
+	}
+
+	@ConfigItem(
+		keyName = "showServices",
+		name = "Services",
+		description = "Tutors, the estate agent, makeovers and other services",
+		position = 10,
+		section = mapIconsSection
+	)
+	default boolean showServices()
 	{
 		return false;
 	}

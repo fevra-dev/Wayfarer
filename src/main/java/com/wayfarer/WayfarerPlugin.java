@@ -61,6 +61,7 @@ public class WayfarerPlugin extends Plugin
 			if (client.getGameState() == GameState.LOGGED_IN)
 			{
 				groundItems.seed(client.getTopLevelWorldView());
+				mapIcons.seed(client.getTopLevelWorldView());
 			}
 		});
 	}
