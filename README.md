@@ -73,7 +73,8 @@ find the nearest bank or altar at a glance. Each group has its own switch under 
 | Shops | Services (tutors, estate agent, makeovers) |
 
 Icons reach your full Range and sit in their own row along the bottom of the strip, so dots never cover
-them. The strip only grows to make room while at least one icon group is switched on.
+them. Each row only exists while something uses it: turn every dot type off and the icons move up under
+the letters; turn the icons off too and the strip slims down to just the directions.
 
 ## What it doesn't do
 

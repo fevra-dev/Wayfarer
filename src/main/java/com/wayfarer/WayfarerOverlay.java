@@ -59,6 +59,8 @@ class WayfarerOverlay extends Overlay
 	// (ticks and N/NE/E...) and a marker lane beneath it.
 	private static final int STRIP_HEIGHT = 30;
 	private static final int LABEL_BAND_MID = 9;
+	/** The label band alone: the strip with no markers and no icons. */
+	private static final int LABEL_BAND = 18;
 	private static final int CARET_GAP = 2;
 	private static final int CARET_LENGTH = 6;
 	/** Gap above the centred strip; RuneLite's snap corners inset by the same 5px. */
@@ -75,13 +77,12 @@ class WayfarerOverlay extends Overlay
 	private static final int MARKER_DOT_SIZE = 4;
 	private static final int MARKER_MIN_SIZE = 2;
 	/** Map icon height in the marker lane (minimap sprites are ~15px). */
-	private static final int ICON_SIZE = 11;
+	private static final int ICON_SIZE = 13;
 	/**
 	 * Map icons get their own lane below the markers, so dots never sit on
 	 * top of them. The strip only grows by it while an icon group is on.
 	 */
-	private static final int ICON_LANE = 14;
-	private static final int ICON_TOP_Y = STRIP_HEIGHT + 1;
+	private static final int ICON_LANE = 16;
 	/** Same icon within this many pixels draws once. */
 	private static final int ICON_DEDUPE_PX = 8;
 	/** Same-colour markers landing within this many pixels share one dot. */
@@ -136,6 +137,8 @@ class WayfarerOverlay extends Overlay
 	private double sizeScale = 1.0;
 	/** This frame's strip height: the two base lanes, plus the icon lane when in use. */
 	private int stripHeight = STRIP_HEIGHT;
+	/** Top of this frame's icon lane: under the markers, or under the labels when markers are off. */
+	private int iconTopY = STRIP_HEIGHT + 1;
 
 	/**
 	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
@@ -178,7 +181,12 @@ class WayfarerOverlay extends Overlay
 	public Dimension render(Graphics2D graphics)
 	{
 		int stripWidth = config.length().width(client.getViewportWidth());
-		stripHeight = STRIP_HEIGHT + (anyIconGroupShown() ? ICON_LANE : 0);
+		// Each lane exists only while something uses it: markers off drops the
+		// marker lane, icons off drops the icon lane, both off leaves the labels.
+		int base = config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems()
+			? STRIP_HEIGHT : LABEL_BAND;
+		iconTopY = base + 1;
+		stripHeight = base + (anyIconGroupShown() ? ICON_LANE : 0);
 		int height = stripHeight + CARET_GAP + CARET_LENGTH + 1;
 		if (getPosition() != OverlayPosition.DYNAMIC)
 		{
@@ -631,7 +639,7 @@ class WayfarerOverlay extends Overlay
 		Composite previous = graphics.getComposite();
 		graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1.0, alpha)));
 		graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-		graphics.drawImage(sprite, x - width / 2, ICON_TOP_Y, width, ICON_SIZE, null);
+		graphics.drawImage(sprite, x - width / 2, iconTopY, width, ICON_SIZE, null);
 		graphics.setComposite(previous);
 	}
 
