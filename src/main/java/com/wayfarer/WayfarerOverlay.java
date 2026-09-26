@@ -1,15 +1,20 @@
 package com.wayfarer;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
+import java.awt.Composite;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import javax.inject.Inject;
 import net.runelite.api.Actor;
@@ -18,6 +23,7 @@ import net.runelite.api.NPC;
 import net.runelite.api.NPCComposition;
 import net.runelite.api.Player;
 import net.runelite.api.Tile;
+import net.runelite.api.TileObject;
 import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
@@ -53,10 +59,10 @@ class WayfarerOverlay extends Overlay
 	// (ticks and N/NE/E...) and a marker lane beneath it.
 	private static final int STRIP_HEIGHT = 30;
 	private static final int LABEL_BAND_MID = 9;
+	/** The label band alone: the strip with no markers and no icons. */
+	private static final int LABEL_BAND = 18;
 	private static final int CARET_GAP = 2;
 	private static final int CARET_LENGTH = 6;
-	private static final int MIN_WIDTH = 240;
-	private static final int MAX_WIDTH = 480;
 	/** Gap above the centred strip; RuneLite's snap corners inset by the same 5px. */
 	private static final int CENTRED_TOP_MARGIN = 5;
 	/** Range follows zoom: fraction of the full range left when zoomed all the way in. */
@@ -69,6 +75,20 @@ class WayfarerOverlay extends Overlay
 
 	private static final int LOCAL_TILE_SIZE = 128;
 	private static final int MARKER_DOT_SIZE = 4;
+	private static final int MARKER_MIN_SIZE = 2;
+	/** Map icon height in the marker lane (minimap sprites are ~15px). */
+	private static final int ICON_SIZE = 13;
+	/**
+	 * Map icons get their own lane below the markers, so dots never sit on
+	 * top of them. The strip only grows by it while an icon group is on.
+	 */
+	private static final int ICON_LANE = 16;
+	/** Same icon within this many pixels draws once. */
+	private static final int ICON_DEDUPE_PX = 8;
+	/** Same-colour markers landing within this many pixels share one dot. */
+	private static final int DEDUPE_PX = 3;
+	/** Shrink when zoomed out: size multiplier at the furthest zoom. */
+	private static final double SHRINK_ZOOMED_OUT = 0.6;
 	/** Distance as size: dot diameter beside you, and at the range cap. */
 	private static final int MARKER_NEAR_SIZE = 5;
 	private static final int MARKER_FAR_SIZE = 2;
@@ -96,11 +116,29 @@ class WayfarerOverlay extends Overlay
 	private final Client client;
 	private final WayfarerConfig config;
 	private final GroundItemTiles groundItems;
+	private final MapIconObjects mapIcons;
+	/** Icons already drawn this frame, keyed by x cell and icon id: one bank icon, not three. */
+	private final Set<Long> occupiedIcons = new HashSet<>();
 
 	/** Reused per frame so attackable NPCs can be drawn last without a second NPC pass. */
 	private final List<NPC> threats = new ArrayList<>();
 	/** Reused per frame: the main world view plus one per boat. */
 	private final List<WorldView> views = new ArrayList<>();
+	/**
+	 * Marker cells already drawn this frame, keyed by position (in
+	 * DEDUPE_PX cells) and colour. A crowd on one spot draws one dot, not a
+	 * stack of translucent dots that sums into an oversized blob.
+	 * ponytail: first drawn wins, which with height off can let a dim far
+	 * dot hide a bright near one on the same pixel; keep the brightest per
+	 * cell if that shows up.
+	 */
+	private final Set<Long> occupied = new HashSet<>();
+	/** Shrink when zoomed out: marker size multiplier for this frame. */
+	private double sizeScale = 1.0;
+	/** This frame's strip height: the two base lanes, plus the icon lane when in use. */
+	private int stripHeight = STRIP_HEIGHT;
+	/** Top of this frame's icon lane: under the markers, or under the labels when markers are off. */
+	private int iconTopY = STRIP_HEIGHT + 1;
 
 	/**
 	 * Each marker's shown bearing, keyed by what it marks (the NPC, player
@@ -122,11 +160,12 @@ class WayfarerOverlay extends Overlay
 	}
 
 	@Inject
-	private WayfarerOverlay(Client client, WayfarerConfig config, GroundItemTiles groundItems)
+	private WayfarerOverlay(Client client, WayfarerConfig config, GroundItemTiles groundItems, MapIconObjects mapIcons)
 	{
 		this.client = client;
 		this.config = config;
 		this.groundItems = groundItems;
+		this.mapIcons = mapIcons;
 		setPosition(OverlayPosition.TOP_CENTER);
 		setLayer(OverlayLayer.ABOVE_SCENE);
 	}
@@ -141,8 +180,14 @@ class WayfarerOverlay extends Overlay
 	@Override
 	public Dimension render(Graphics2D graphics)
 	{
-		int stripWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, (int) (client.getViewportWidth() * 0.40)));
-		int height = STRIP_HEIGHT + CARET_GAP + CARET_LENGTH + 1;
+		int stripWidth = config.length().width(client.getViewportWidth());
+		// Each lane exists only while something uses it: markers off drops the
+		// marker lane, icons off drops the icon lane, both off leaves the labels.
+		int base = config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems()
+			? STRIP_HEIGHT : LABEL_BAND;
+		iconTopY = base + 1;
+		stripHeight = base + (anyIconGroupShown() ? ICON_LANE : 0);
+		int height = stripHeight + CARET_GAP + CARET_LENGTH + 1;
 		if (getPosition() != OverlayPosition.DYNAMIC)
 		{
 			drawStrip(graphics, stripWidth);
@@ -181,9 +226,9 @@ class WayfarerOverlay extends Overlay
 		return centerX + (int) Math.round(fraction * halfWidth);
 	}
 
-	private static void fillStripShape(Graphics2D graphics, StripShape shape, int width)
+	private static void fillStripShape(Graphics2D graphics, StripShape shape, int width, int height)
 	{
-		int h = STRIP_HEIGHT;
+		int h = height;
 		switch (shape)
 		{
 			case PILL:
@@ -207,11 +252,12 @@ class WayfarerOverlay extends Overlay
 		graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-		// Default 65% is the lowest opacity at which PAPER labels clear 4.5:1
-		// over bright stone, sand, fog and dark ground alike (contrast-sweep,
-		// 2026-09-25: 4.57:1 worst case at 65%; 31% fell to ~1.6:1).
+		// Default 54% is the lowest opacity at which the SNOW_WHITE labels
+		// clear 4.5:1 over bright stone, sand, fog and dark ground alike
+		// (contrast-sweep, 2026-09-26: 4.52:1 worst case at 54%, 4.24 at 52%; 31% fell
+		// to ~1.6:1). Lower is the player's call, and the setting says so.
 		graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, config.backgroundOpacity() * 255 / 100));
-		fillStripShape(graphics, config.shape(), stripWidth);
+		fillStripShape(graphics, config.shape(), stripWidth, stripHeight);
 
 		double heading = CompassMath.bearingDegrees(client.getCameraYaw());
 
@@ -240,10 +286,8 @@ class WayfarerOverlay extends Overlay
 			graphics.drawLine(x, LABEL_BAND_MID - 3, x, LABEL_BAND_MID + 3);
 		}
 
-		if (config.showPlayers() || config.showMonsters() || config.showNpcs() || config.showItems())
-		{
-			renderMarkers(graphics, heading, centerX, halfWidth);
-		}
+		// Each marker kind and icon group checks its own toggle inside.
+		renderMarkers(graphics, heading, centerX, halfWidth);
 
 		for (int i = 0; i < DIRECTION_LABELS.length; i++)
 		{
@@ -263,7 +307,7 @@ class WayfarerOverlay extends Overlay
 			int y = LABEL_BAND_MID + fm.getAscent() / 2 - 1;
 			graphics.setColor(Palette.withAlpha(Palette.WARM_BLACK, (int) (strength * alpha)));
 			graphics.drawString(label, x + 1, y + 1);
-			graphics.setColor(Palette.withAlpha(Palette.PAPER, (int) (strength * alpha)));
+			graphics.setColor(Palette.withAlpha(Palette.SNOW_WHITE, (int) (strength * alpha)));
 			graphics.drawString(label, x, y);
 		}
 
@@ -271,7 +315,7 @@ class WayfarerOverlay extends Overlay
 		// current heading. Amber — the single accent, reserved for "where
 		// you are pointing" (see Palette).
 		graphics.setColor(CARET);
-		graphics.drawLine(centerX, STRIP_HEIGHT + CARET_GAP, centerX, STRIP_HEIGHT + CARET_GAP + CARET_LENGTH);
+		graphics.drawLine(centerX, stripHeight + CARET_GAP, centerX, stripHeight + CARET_GAP + CARET_LENGTH);
 	}
 
 	/**
@@ -347,6 +391,9 @@ class WayfarerOverlay extends Overlay
 		frameSeconds = lastFrameNanos == 0 ? 0 : Math.min(MAX_FRAME_SECONDS, (now - lastFrameNanos) / 1e9);
 		lastFrameNanos = now;
 		frameNumber++;
+		occupied.clear();
+		occupiedIcons.clear();
+		sizeScale = config.shrinkWhenZoomedOut() ? SHRINK_ZOOMED_OUT + (1.0 - SHRINK_ZOOMED_OUT) * zoomIn() : 1.0;
 		clockSeconds += frameSeconds;
 
 		// Actors live in the main world view or aboard a boat (Sailing), each
@@ -363,6 +410,9 @@ class WayfarerOverlay extends Overlay
 				views.add(boat.getWorldView());
 			}
 		}
+
+		// Map icons first, so the dots draw over them.
+		drawIcons(graphics, frame, world.getPlane());
 
 		if (config.showItems())
 		{
@@ -482,6 +532,117 @@ class WayfarerOverlay extends Overlay
 		return s;
 	}
 
+	private boolean anyIconGroupShown()
+	{
+		for (IconGroup group : IconGroup.values())
+		{
+			if (showGroup(group))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean showGroup(IconGroup group)
+	{
+		switch (group)
+		{
+			case BANKS:
+				return config.showBanks();
+			case ALTARS:
+				return config.showAltars();
+			case SHOPS:
+				return config.showShops();
+			case RARE_TREES:
+				return config.showRareTrees();
+			case TRANSPORT:
+				return config.showTransport();
+			case SKILLING:
+				return config.showSkilling();
+			case MINIGAMES:
+				return config.showMinigames();
+			case SLAYER:
+				return config.showSlayer();
+			case QUESTS:
+				return config.showQuests();
+			case DUNGEONS:
+				return config.showDungeons();
+			case SERVICES:
+				return config.showServices();
+			default:
+				return false;
+		}
+	}
+
+	/**
+	 * Minimap icons in their direction. Landmarks, so they reach the full
+	 * Range (not the zoom-narrowed one), keep one size, and carry no
+	 * distance fade -- a bank 18 tiles off matters as much as one at 6.
+	 */
+	private void drawIcons(Graphics2D graphics, Frame frame, int plane)
+	{
+		for (Map.Entry<TileObject, Integer> entry : mapIcons.icons().entrySet())
+		{
+			TileObject object = entry.getKey();
+			int iconId = entry.getValue();
+			IconGroup group = IconGroup.forCategory(mapIcons.category(iconId));
+			if (group == null || !showGroup(group) || object.getPlane() != plane)
+			{
+				continue;
+			}
+			BufferedImage sprite = mapIcons.sprite(iconId);
+			if (sprite != null)
+			{
+				drawIcon(graphics, frame, object, iconId, sprite);
+			}
+		}
+	}
+
+	private void drawIcon(Graphics2D graphics, Frame frame, TileObject object, int iconId, BufferedImage sprite)
+	{
+		LocalPoint them = object.getLocalLocation();
+		if (them == null)
+		{
+			return;
+		}
+		int dxEast = them.getX() - frame.me.getX();
+		int dyNorth = them.getY() - frame.me.getY();
+		if (dxEast == 0 && dyNorth == 0)
+		{
+			return;
+		}
+		long distSq = (long) dxEast * dxEast + (long) dyNorth * dyNorth;
+		if (distSq > (long) frame.scaleLocal * frame.scaleLocal)
+		{
+			return;
+		}
+		ShownBearing shown = track(object, CompassMath.bearingToTarget(dxEast, dyNorth));
+		double fraction = CompassMath.screenOffsetFraction(
+			CompassMath.signedDeltaDegrees(shown.bearing, frame.heading), HALF_SPAN_DEG);
+		if (Math.abs(fraction) > 1.0)
+		{
+			return;
+		}
+		double alpha = CompassMath.edgeAlpha(fraction, FADE_ZONE)
+			* CompassMath.appearFade(clockSeconds - shown.born, MARKER_FADE_IN_SECONDS);
+		if (alpha <= 0)
+		{
+			return;
+		}
+		int x = frame.centerX + (int) Math.round(fraction * frame.halfWidth);
+		if (!occupiedIcons.add(((long) (x / ICON_DEDUPE_PX) << 32) | (iconId & 0xFFFFFFFFL)))
+		{
+			return;
+		}
+		int width = Math.max(1, sprite.getWidth() * ICON_SIZE / Math.max(1, sprite.getHeight()));
+		Composite previous = graphics.getComposite();
+		graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1.0, alpha)));
+		graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		graphics.drawImage(sprite, x - width / 2, iconTopY, width, ICON_SIZE, null);
+		graphics.setComposite(previous);
+	}
+
 	/**
 	 * An actor's position in top-level world coordinates. Aboard a boat
 	 * (Sailing), an actor lives in the boat's own world view, whose local
@@ -542,7 +703,12 @@ class WayfarerOverlay extends Overlay
 
 		int x = frame.centerX + (int) Math.round(fraction * frame.halfWidth);
 		int y = CompassMath.byDistance(distFraction, frame.nearY, frame.farY);
-		int size = CompassMath.byDistance(distFraction, frame.nearSize, frame.farSize);
+		int size = Math.max(MARKER_MIN_SIZE, (int) Math.round(CompassMath.byDistance(distFraction, frame.nearSize, frame.farSize) * sizeScale));
+		long cell = ((long) (x / DEDUPE_PX) << 40) | ((long) (y / DEDUPE_PX) << 24) | (color.getRGB() & 0xFFFFFFL);
+		if (!occupied.add(cell))
+		{
+			return;
+		}
 		graphics.setColor(Palette.withAlpha(color, alpha));
 		graphics.fillOval(x - size / 2, y - size / 2, size, size);
 	}
