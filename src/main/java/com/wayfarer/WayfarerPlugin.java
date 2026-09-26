@@ -4,8 +4,16 @@ import com.google.inject.Provides;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.events.DecorativeObjectDespawned;
+import net.runelite.api.events.DecorativeObjectSpawned;
+import net.runelite.api.events.GameObjectDespawned;
+import net.runelite.api.events.GameObjectSpawned;
+import net.runelite.api.events.GroundObjectDespawned;
+import net.runelite.api.events.GroundObjectSpawned;
 import net.runelite.api.events.ItemDespawned;
 import net.runelite.api.events.ItemSpawned;
+import net.runelite.api.events.WallObjectDespawned;
+import net.runelite.api.events.WallObjectSpawned;
 import net.runelite.api.events.WorldViewUnloaded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -30,6 +38,9 @@ public class WayfarerPlugin extends Plugin
 
 	@Inject
 	private GroundItemTiles groundItems;
+
+	@Inject
+	private MapIconObjects mapIcons;
 
 	@Inject
 	private Client client;
@@ -59,7 +70,11 @@ public class WayfarerPlugin extends Plugin
 	{
 		overlayManager.remove(overlay);
 		// The overlay reads the set on the client thread; clear it there too.
-		clientThread.invoke(groundItems::clear);
+		clientThread.invoke(() ->
+		{
+			groundItems.clear();
+			mapIcons.clear();
+		});
 	}
 
 	@Subscribe
@@ -102,6 +117,55 @@ public class WayfarerPlugin extends Plugin
 	public void onWorldViewUnloaded(WorldViewUnloaded event)
 	{
 		groundItems.unloaded(event.getWorldView());
+		mapIcons.unloaded(event.getWorldView());
+	}
+
+	@Subscribe
+	public void onGameObjectSpawned(GameObjectSpawned event)
+	{
+		mapIcons.spawned(event.getGameObject());
+	}
+
+	@Subscribe
+	public void onGameObjectDespawned(GameObjectDespawned event)
+	{
+		mapIcons.despawned(event.getGameObject());
+	}
+
+	@Subscribe
+	public void onWallObjectSpawned(WallObjectSpawned event)
+	{
+		mapIcons.spawned(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onWallObjectDespawned(WallObjectDespawned event)
+	{
+		mapIcons.despawned(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
+	{
+		mapIcons.spawned(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectDespawned(DecorativeObjectDespawned event)
+	{
+		mapIcons.despawned(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onGroundObjectSpawned(GroundObjectSpawned event)
+	{
+		mapIcons.spawned(event.getGroundObject());
+	}
+
+	@Subscribe
+	public void onGroundObjectDespawned(GroundObjectDespawned event)
+	{
+		mapIcons.despawned(event.getGroundObject());
 	}
 
 	@Provides
