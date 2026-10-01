@@ -9,8 +9,6 @@ and the directions (N, NE, E, SE, S, SW, W, NW) slide beneath it as you turn. Ne
 drops and landmarks ride along underneath, each in its own direction, so you can tell at a glance
 what's around you and which way it is.
 
-![The strip up close: directions, dots and map icons](docs/strip.png)
-
 ## What it shows
 
 **Dots**, in the middle row:
