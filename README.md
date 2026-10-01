@@ -50,6 +50,18 @@ Only things that already appear on your minimap are marked.
 | Centre on game view | On | Pins the strip to the true top centre. RuneLite's own top-centre spot sits a little left of centre, because it centres on the area beside the minimap |
 | Background opacity | 54% | How solid the strip is. 54% is the lightest setting where the letters stay clearly readable over bright fog, sand and pale stone |
 
+![The three shapes: Pill, Square and Pointed](docs/shapes.png)
+
+*Shape, top to bottom: Pill, Square, Pointed.*
+
+![The four lengths, Dagger to Godsword](docs/lengths.png)
+
+*Length, top to bottom: Dagger, Scimitar, Longsword, Godsword.*
+
+![Background opacity from see-through to nearly solid](docs/opacity.png)
+
+*Background opacity, from see-through to nearly solid.*
+
 ### Markers
 
 | Setting | Default | What it does |
