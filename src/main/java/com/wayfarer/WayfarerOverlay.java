@@ -28,6 +28,7 @@ import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.gameval.VarClientID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -362,11 +363,17 @@ class WayfarerOverlay extends Overlay
 	 * Only NPCs the minimap itself would draw are marked. Some content
 	 * uses invisible NPCs to drive mechanics; the minimap hides those and
 	 * so must this, or the strip becomes a mechanic indicator.
+	 *
+	 * Likewise when content hides or locks the minimap (any nonzero
+	 * MINIMAP_STATE), no markers are drawn at all: RuneLite forbids unhiding
+	 * hidden interface components, and markers would show what the hidden
+	 * minimap is withholding. The player's own "hide minimap" option is a
+	 * different varbit and leaves markers on.
 	 */
 	private void renderMarkers(Graphics2D graphics, double heading, int centerX, int halfWidth)
 	{
 		Player local = client.getLocalPlayer();
-		if (local == null)
+		if (local == null || client.getVarbitValue(VarbitID.MINIMAP_STATE) != 0)
 		{
 			return;
 		}
@@ -458,7 +465,10 @@ class WayfarerOverlay extends Overlay
 				}
 			}
 		}
-		if (config.showPlayers())
+		if (config.showPlayers() && !PvpAreas.hidesPlayers(
+			client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1,
+			client.getVarbitValue(VarbitID.PVP_AREA_CLIENT) == 1,
+			client.getWorldType()))
 		{
 			Color playerColor = config.playerColor();
 			for (WorldView view : views)

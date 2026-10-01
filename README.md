@@ -9,8 +9,6 @@ and the directions (N, NE, E, SE, S, SW, W, NW) slide beneath it as you turn. Ne
 drops and landmarks ride along underneath, each in its own direction, so you can tell at a glance
 what's around you and which way it is.
 
-![The strip up close: directions, dots and map icons](docs/strip.png)
-
 ## What it shows
 
 **Dots**, in the middle row:
@@ -46,16 +44,28 @@ Only things that already appear on your minimap are marked.
 | Setting | Default | What it does |
 |---|---|---|
 | Shape | Pill | *Pill*, *Square* or *Pointed* ends |
-| Length | Longsword | *Dagger*, *Scimitar*, *Longsword* or *Godsword*, shortest to longest |
+| Length | Scimitar | *Dagger*, *Scimitar*, *Longsword* or *Godsword*, shortest to longest |
 | Centre on game view | On | Pins the strip to the true top centre. RuneLite's own top-centre spot sits a little left of centre, because it centres on the area beside the minimap |
-| Background opacity | 54% | How solid the strip is. 54% is the lightest setting where the letters stay clearly readable over bright fog, sand and pale stone |
+| Background opacity | 42% | How solid the strip is. Over very bright fog or pale stone the letters are easier to read at 54% or above |
+
+![The three shapes: Pill, Square and Pointed](docs/shapes.png)
+
+*Shape, top to bottom: Pill, Square, Pointed.*
+
+![The four lengths, Dagger to Godsword](docs/lengths.png)
+
+*Length, top to bottom: Dagger, Scimitar, Longsword, Godsword.*
+
+![Background opacity from see-through to nearly solid](docs/opacity.png)
+
+*Background opacity, from see-through to nearly solid.*
 
 ### Markers
 
 | Setting | Default | What it does |
 |---|---|---|
 | Players, Monsters, Other NPCs, Ground items | On | Each kind of dot has its own switch and colour picker (with transparency) |
-| Range | 20 tiles | How far away something can be and still get a dot (4 to 50) |
+| Range | 30 tiles | How far away something can be and still get a dot (4 to 50) |
 | Distance as height | On | Distant dots sit higher in their row |
 | Distance as size | Off | Distant dots draw smaller |
 | Range follows zoom | Off | Zooming in narrows the range to the nearest third or so (never under 4 tiles), the way the minimap shows less as it zooms in |
