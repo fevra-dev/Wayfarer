@@ -42,7 +42,7 @@ public interface WayfarerConfig extends Config
 	)
 	default StripLength length()
 	{
-		return StripLength.LONGSWORD;
+		return StripLength.SCIMITAR;
 	}
 
 	@ConfigItem(
@@ -62,13 +62,13 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "backgroundOpacity",
 		name = "Background opacity",
-		description = "How solid the strip behind the letters is. Below 54% the letters lose contrast over bright scenery such as fog, sand and pale stone",
+		description = "How solid the strip behind the letters is. Over bright scenery such as fog, sand and pale stone, 54% or more keeps the letters clearest",
 		position = 3,
 		section = stripSection
 	)
 	default int backgroundOpacity()
 	{
-		return 54;
+		return 42;
 	}
 
 	@ConfigSection(
@@ -188,7 +188,7 @@ public interface WayfarerConfig extends Config
 	)
 	default int nearbyRange()
 	{
-		return 20;
+		return 30;
 	}
 
 	@ConfigItem(
