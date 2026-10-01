@@ -28,6 +28,7 @@ import net.runelite.api.WorldEntity;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.gameval.VarClientID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -458,7 +459,10 @@ class WayfarerOverlay extends Overlay
 				}
 			}
 		}
-		if (config.showPlayers())
+		if (config.showPlayers() && !PvpAreas.hidesPlayers(
+			client.getVarbitValue(VarbitID.INSIDE_WILDERNESS) == 1,
+			client.getVarbitValue(VarbitID.PVP_AREA_CLIENT) == 1,
+			client.getWorldType()))
 		{
 			Color playerColor = config.playerColor();
 			for (WorldView view : views)

@@ -81,7 +81,7 @@ public interface WayfarerConfig extends Config
 	@ConfigItem(
 		keyName = "showPlayers",
 		name = "Players",
-		description = "Mark other players",
+		description = "Mark other players. Never in the Wilderness or on PvP worlds, where it would act as a PK warning",
 		position = 1,
 		section = markersSection
 	)
